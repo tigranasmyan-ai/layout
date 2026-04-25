@@ -8,6 +8,7 @@ import HUD from './components/HUD'
 import CodeModal, { generateHTML, generateCSS } from './components/CodeModal'
 import PhotoLayer from './components/PhotoLayer'
 import MonacoEditor from './components/MonacoEditor'
+import SpacingOverlay from './components/SpacingOverlay'
 import GuidesLayer from './components/GuidesLayer'
 
 // Logic
@@ -172,8 +173,8 @@ export default function App() {
             <main className="canvas-wrapper">
                 <style>{`.tl-geo { fill: transparent !important; stroke: rgba(255,255,255,0.1) !important; } ${activeShape ? `[data-shape-id="${activeShape.id}"] { outline: 2px solid #3b82f6 !important; }` : ''}`}</style>
 
-                <GuidesLayer tree={treeNodes} camera={camera} />
                 <PhotoLayer shapes={shapes} camera={camera} showPhotos={showPhotos} />
+                <SpacingOverlay activeShape={activeShape} camera={camera} onUpdate={runAtomicUpdate} />
 
                 <Tldraw gridMode persistenceKey="flex-stable-v2000" onMount={(ed) => { 
                     setEditor(ed)

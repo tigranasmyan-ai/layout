@@ -43,6 +43,14 @@ export const buildTree = (all) => {
             parentDirection: parentDir, 
             align: curr.meta?.align || 'flex-start', 
             justify: curr.meta?.justify || 'flex-start',
+            paddingTop: parseInt(curr.meta?.paddingTop ?? curr.meta?.padding) || 0,
+            paddingRight: parseInt(curr.meta?.paddingRight ?? curr.meta?.padding) || 0,
+            paddingBottom: parseInt(curr.meta?.paddingBottom ?? curr.meta?.padding) || 0,
+            paddingLeft: parseInt(curr.meta?.paddingLeft ?? curr.meta?.padding) || 0,
+            marginTop: parseInt(curr.meta?.marginTop ?? curr.meta?.margin) || 0,
+            marginRight: parseInt(curr.meta?.marginRight ?? curr.meta?.margin) || 0,
+            marginBottom: parseInt(curr.meta?.marginBottom ?? curr.meta?.margin) || 0,
+            marginLeft: parseInt(curr.meta?.marginLeft ?? curr.meta?.margin) || 0,
             mlA: !!curr.meta?.mlA, 
             mrA: !!curr.meta?.mrA, 
             isGrow: !!curr.meta?.isGrow, 
@@ -63,14 +71,29 @@ export const calculateLayoutUpdates = (treeNodes) => {
         const isRow = node.direction === 'row'
         const justify = node.justify || 'flex-start'
         const align = node.align || 'flex-start'
-        const gap = 10
-        const pMain = isRow ? node.w : node.h
-        const pCross = isRow ? node.h : node.w
+        const gap = parseInt(node.meta?.gap) || 0
+        const pT = node.paddingTop || 0;
+        const pR = node.paddingRight || 0;
+        const pB = node.paddingBottom || 0;
+        const pL = node.paddingLeft || 0;
+        
+        const pMain = (isRow ? node.w : node.h) - (isRow ? (pL + pR) : (pT + pB))
+        const pCross = (isRow ? node.h : node.w) - (isRow ? (pT + pB) : (pL + pR))
         
         let fixedSum = 0, growCount = 0, autoMarginCount = 0
         node.children.forEach(c => { 
-            if (c.isGrow) growCount++
-            else fixedSum += isRow ? c.w : c.h
+            const cmT = c.marginTop || 0;
+            const cmR = c.marginRight || 0;
+            const cmB = c.marginBottom || 0;
+            const cmL = c.marginLeft || 0;
+            const cMarginMain = isRow ? (cmL + cmR) : (cmT + cmB);
+
+            if (c.isGrow) {
+                growCount++
+                fixedSum += cMarginMain // Margin of growing elements still takes space
+            } else {
+                fixedSum += (isRow ? c.w : c.h) + cMarginMain
+            }
             if (c.mlA) autoMarginCount++
             if (c.mrA) autoMarginCount++
         })
@@ -91,14 +114,29 @@ export const calculateLayoutUpdates = (treeNodes) => {
         }
         
         node.children.forEach(c => {
+            const cmT = c.marginTop || 0;
+            const cmR = c.marginRight || 0;
+            const cmB = c.marginBottom || 0;
+            const cmL = c.marginLeft || 0;
+            
+            const cMarginMainStart = isRow ? cmL : cmT;
+            const cMarginMainEnd = isRow ? cmR : cmB;
+            const cMarginCrossStart = isRow ? cmT : cmL;
+            const cMarginCrossEnd = isRow ? cmB : cmR;
+
             if (c.mlA) startPos += exAuto
+            
+            startPos += cMarginMainStart // Add leading margin
+            
             let crossPos = 0
-            if (align === 'center') crossPos = (pCross - (isRow ? c.h : c.w)) / 2
-            if (align === 'flex-end') crossPos = pCross - (isRow ? c.h : c.w)
+            if (align === 'center') crossPos = (pCross - ((isRow ? c.h : c.w) + cMarginCrossStart + cMarginCrossEnd)) / 2
+            if (align === 'flex-end') crossPos = pCross - ((isRow ? c.h : c.w) + cMarginCrossStart + cMarginCrossEnd)
+            
+            crossPos += cMarginCrossStart // Add top/bottom margin
             
             const mainDim = c.isGrow ? exGrow : (isRow ? c.w : c.h)
-            const fX = isRow ? node.x + startPos : node.x + crossPos
-            const fY = isRow ? node.y + crossPos : node.y + startPos
+            const fX = isRow ? node.x + pL + startPos : node.x + pL + crossPos
+            const fY = isRow ? node.y + pT + crossPos : node.y + pT + startPos
             
             updates.push({ 
                 id: c.id, 
@@ -107,12 +145,12 @@ export const calculateLayoutUpdates = (treeNodes) => {
                 y: Math.round(fY), 
                 props: { 
                     w: Math.round(isRow && c.isGrow ? mainDim : c.w), 
-                    h: Math.round(!isRow && c.isGrow ? mainDim : (c.isFullH ? (isRow ? pCross : c.h) : c.h)) 
+                    h: Math.round(!isRow && c.isGrow ? mainDim : (c.isFullH ? (isRow ? pCross - (cMarginCrossStart + cMarginCrossEnd) : c.h) : c.h)) 
                 }, 
                 meta: c.meta 
             })
             
-            startPos += mainDim + (growCount > 0 || autoMarginCount > 0 ? gap : step)
+            startPos += mainDim + cMarginMainEnd + (growCount > 0 || autoMarginCount > 0 ? gap : step)
             if (c.mrA) startPos += exAuto
             if (c.children?.length) layout(c)
         })
