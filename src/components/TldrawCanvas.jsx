@@ -9,7 +9,7 @@ export default function TldrawCanvas({ onShapeCreate }) {
     editor.sideEffects.registerAfterCreateHandler('shape', (shape) => {
       console.log('Shape created:', shape)
       
-      // Передаем данные о фигуре наверх во Vue
+      // Передаем данные о фигуре родительскому компоненту
       if (onShapeCreate && shape.type === 'geo' && shape.props.geo === 'rectangle') {
         onShapeCreate({
           id: shape.id,

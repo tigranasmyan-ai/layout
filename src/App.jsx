@@ -27,16 +27,62 @@ export default function App() {
     const [isGlobalLock, setIsGlobalLock] = useState(true)
     const fileInputRef = useRef(null)
 
-    // SYNC STATE
+    // SYNC STATE & AUTO-LAYOUT
     useEffect(() => {
         if (!editor) return
+        
+        let layoutTimeout = null;
+        
         const sync = () => {
-            setShapes(Array.from(editor.getCurrentPageShapes()))
+            const currentShapes = Array.from(editor.getCurrentPageShapes())
+            setShapes(currentShapes)
             const sel = editor.getSelectedShapeIds(); setSelectedId(sel.length ? sel[0] : null)
             setCamera({ ...editor.getCamera() })
+            
+            // АВТО-ЛЕЙАУТ: Debounced вызов после изменений
+            clearTimeout(layoutTimeout)
+            layoutTimeout = setTimeout(() => {
+                // Ждем, пока пользователь отпустит кнопку мыши (не рисует, не тянет)
+                if (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing) return;
+                
+                let metaChanged = false;
+                currentShapes.forEach(shape => {
+                    if (shape.type === 'geo') {
+                        const parent = currentShapes.find(p => p.id !== shape.id && p.type === 'geo' && isInside(shape, p))
+                        if (parent && (!parent.meta?.align || !parent.meta?.justify)) {
+                            editor.updateShape({
+                                id: parent.id,
+                                meta: { ...parent.meta, align: 'flex-start', justify: 'flex-start' }
+                            })
+                            metaChanged = true;
+                        }
+                    }
+                })
+                
+                const shapesForLayout = metaChanged ? Array.from(editor.getCurrentPageShapes()) : currentShapes;
+                const tree = buildTree(shapesForLayout);
+                const updates = calculateLayoutUpdates(tree);
+                
+                const realUpdates = updates.filter(u => {
+                    const s = editor.getShape(u.id);
+                    if (!s) return false;
+                    const posChanged = Math.abs((u.x ?? s.x) - s.x) > 0.5 || Math.abs((u.y ?? s.y) - s.y) > 0.5;
+                    const sizeChanged = u.props && (Math.abs(u.props.w - (s.props.w||0)) > 0.5 || Math.abs(u.props.h - (s.props.h||0)) > 0.5);
+                    return posChanged || sizeChanged;
+                });
+                
+                if (realUpdates.length > 0) {
+                    editor.updateShapes(realUpdates);
+                }
+            }, 100);
         }
-        sync(); const sub = editor.store.listen(sync)
-        return () => sub()
+        
+        sync(); 
+        const sub = editor.store.listen(sync)
+        return () => { 
+            sub(); 
+            clearTimeout(layoutTimeout); 
+        }
     }, [editor])
 
     const treeNodes = useMemo(() => buildTree(shapes), [shapes])
@@ -129,7 +175,10 @@ export default function App() {
                 <GuidesLayer tree={treeNodes} camera={camera} />
                 <PhotoLayer shapes={shapes} camera={camera} showPhotos={showPhotos} />
 
-                <Tldraw gridMode persistenceKey="flex-stable-v2000" onMount={(ed) => { setEditor(ed); ed.user.updateUserPreferences({ isSnapMode: false }) }} />
+                <Tldraw gridMode persistenceKey="flex-stable-v2000" onMount={(ed) => { 
+                    setEditor(ed)
+                    ed.user.updateUserPreferences({ isSnapMode: true }) 
+                }} />
 
                 <HUD 
                     activeShape={activeShape}
