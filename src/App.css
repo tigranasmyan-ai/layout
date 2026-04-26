@@ -208,3 +208,13 @@ body, html, #root { margin: 0; padding: 0; height: 100%; width: 100%; overflow: 
 }
 
 .hud-btn-icon.danger:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+/* Hide number input spin buttons */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}

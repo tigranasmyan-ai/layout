@@ -51,10 +51,15 @@ export const buildTree = (all) => {
             marginRight: parseInt(curr.meta?.marginRight ?? curr.meta?.margin) || 0,
             marginBottom: parseInt(curr.meta?.marginBottom ?? curr.meta?.margin) || 0,
             marginLeft: parseInt(curr.meta?.marginLeft ?? curr.meta?.margin) || 0,
-            mlA: !!curr.meta?.mlA, 
-            mrA: !!curr.meta?.mrA, 
+            mtA: !!curr.meta?.mtA,
+            mrA: !!curr.meta?.mrA,
+            mbA: !!curr.meta?.mbA,
+            mlA: !!curr.meta?.mlA,
             isGrow: !!curr.meta?.isGrow, 
             isFullH: !!curr.meta?.isFullH, 
+            isFullW: !!curr.meta?.isFullW,
+            isAutoW: !!curr.meta?.isAutoW,
+            isAutoH: !!curr.meta?.isAutoH,
             manualCSS: curr.meta?.manualCSS || '',
             children: kids.map(c => build(c, others.filter(o => o.id !== c.id), dir))
         }
@@ -94,8 +99,10 @@ export const calculateLayoutUpdates = (treeNodes) => {
             } else {
                 fixedSum += (isRow ? c.w : c.h) + cMarginMain
             }
-            if (c.mlA) autoMarginCount++
-            if (c.mrA) autoMarginCount++
+            const cAutoMainStart = isRow ? c.mlA : c.mtA;
+            const cAutoMainEnd = isRow ? c.mrA : c.mbA;
+            if (cAutoMainStart) autoMarginCount++
+            if (cAutoMainEnd) autoMarginCount++
         })
         
         const freeSpace = Math.max(0, pMain - fixedSum - (node.children.length - 1) * gap)
@@ -123,8 +130,11 @@ export const calculateLayoutUpdates = (treeNodes) => {
             const cMarginMainEnd = isRow ? cmR : cmB;
             const cMarginCrossStart = isRow ? cmT : cmL;
             const cMarginCrossEnd = isRow ? cmB : cmR;
+            
+            const cAutoMainStart = isRow ? c.mlA : c.mtA;
+            const cAutoMainEnd = isRow ? c.mrA : c.mbA;
 
-            if (c.mlA) startPos += exAuto
+            if (cAutoMainStart) startPos += exAuto
             
             startPos += cMarginMainStart // Add leading margin
             
@@ -134,7 +144,15 @@ export const calculateLayoutUpdates = (treeNodes) => {
             
             crossPos += cMarginCrossStart // Add top/bottom margin
             
-            const mainDim = c.isGrow ? exGrow : (isRow ? c.w : c.h)
+            
+            // if it's row, isFullW makes it take pMain. isFullH makes it take pCross.
+            // if it's column, isFullW makes it take pCross. isFullH makes it take pMain.
+            const mainDimFull = isRow ? pMain - (cmL + cmR) : pMain - (cmT + cmB)
+            const crossDimFull = isRow ? pCross - (cmT + cmB) : pCross - (cmL + cmR)
+
+            const finalW = Math.round(isRow ? (c.isGrow ? exGrow : (c.isFullW ? mainDimFull : c.w)) : (c.isFullW ? crossDimFull : c.w))
+            const finalH = Math.round(!isRow ? (c.isGrow ? exGrow : (c.isFullH ? mainDimFull : c.h)) : (c.isFullH ? crossDimFull : c.h))
+
             const fX = isRow ? node.x + pL + startPos : node.x + pL + crossPos
             const fY = isRow ? node.y + pT + crossPos : node.y + pT + startPos
             
@@ -143,15 +161,13 @@ export const calculateLayoutUpdates = (treeNodes) => {
                 type: 'geo', 
                 x: Math.round(fX), 
                 y: Math.round(fY), 
-                props: { 
-                    w: Math.round(isRow && c.isGrow ? mainDim : c.w), 
-                    h: Math.round(!isRow && c.isGrow ? mainDim : (c.isFullH ? (isRow ? pCross - (cMarginCrossStart + cMarginCrossEnd) : c.h) : c.h)) 
-                }, 
+                props: { w: finalW, h: finalH }, 
                 meta: c.meta 
             })
             
+            const mainDim = isRow ? finalW : finalH;
             startPos += mainDim + cMarginMainEnd + (growCount > 0 || autoMarginCount > 0 ? gap : step)
-            if (c.mrA) startPos += exAuto
+            if (cAutoMainEnd) startPos += exAuto
             if (c.children?.length) layout(c)
         })
     }

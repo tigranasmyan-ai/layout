@@ -34,52 +34,130 @@ export default function App() {
         
         let layoutTimeout = null;
         
-        const sync = () => {
             const currentShapes = Array.from(editor.getCurrentPageShapes())
             setShapes(currentShapes)
             const sel = editor.getSelectedShapeIds(); setSelectedId(sel.length ? sel[0] : null)
             setCamera({ ...editor.getCamera() })
             
-            // АВТО-ЛЕЙАУТ: Debounced вызов после изменений
-            clearTimeout(layoutTimeout)
-            layoutTimeout = setTimeout(() => {
-                // Ждем, пока пользователь отпустит кнопку мыши (не рисует, не тянет)
-                if (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing) return;
-                
-                let metaChanged = false;
-                currentShapes.forEach(shape => {
-                    if (shape.type === 'geo') {
-                        const parent = currentShapes.find(p => p.id !== shape.id && p.type === 'geo' && isInside(shape, p))
-                        if (parent && (!parent.meta?.align || !parent.meta?.justify)) {
-                            editor.updateShape({
-                                id: parent.id,
-                                meta: { ...parent.meta, align: 'flex-start', justify: 'flex-start' }
-                            })
-                            metaChanged = true;
+            const editingId = editor.getEditingShapeId();
+            if (editingId) {
+                const es = editor.getShape(editingId);
+                if (es && es.type === 'geo') {
+                    editor.setEditingShape(null);
+                }
+            }
+        
+        const sub = editor.store.listen((update) => {
+            const isLayoutUpdate = (Date.now() - (window.__lastLayoutEngineUpdate || 0)) < 50;
+            if (!isLayoutUpdate && update.source === 'user' && update.changes && update.changes.updated) {
+                for (const record of Object.values(update.changes.updated)) {
+                    const oldShape = record[0];
+                    const newShape = record[1];
+                    if (oldShape.typeName === 'shape' && newShape.typeName === 'shape' && oldShape.type === 'geo') {
+                        const wChanged = oldShape.props.w !== newShape.props.w;
+                        const hChanged = oldShape.props.h !== newShape.props.h;
+                        
+                        if (wChanged || hChanged) {
+                            const metaUpdates = {};
+                            if (wChanged && (newShape.meta.isFullW || newShape.meta.isGrow || newShape.meta.isAutoW)) {
+                                metaUpdates.isFullW = false;
+                                metaUpdates.isGrow = false;
+                                metaUpdates.isAutoW = false;
+                            }
+                            if (hChanged && (newShape.meta.isFullH || newShape.meta.isAutoH)) {
+                                metaUpdates.isFullH = false;
+                                metaUpdates.isAutoH = false;
+                            }
+                            if (Object.keys(metaUpdates).length > 0) {
+                                setTimeout(() => {
+                                    editor.updateShape({
+                                        id: newShape.id,
+                                        meta: { ...newShape.meta, ...metaUpdates }
+                                    });
+                                }, 0);
+                            }
                         }
                     }
-                })
-                
-                const shapesForLayout = metaChanged ? Array.from(editor.getCurrentPageShapes()) : currentShapes;
-                const tree = buildTree(shapesForLayout);
-                const updates = calculateLayoutUpdates(tree);
-                
-                const realUpdates = updates.filter(u => {
-                    const s = editor.getShape(u.id);
-                    if (!s) return false;
-                    const posChanged = Math.abs((u.x ?? s.x) - s.x) > 0.5 || Math.abs((u.y ?? s.y) - s.y) > 0.5;
-                    const sizeChanged = u.props && (Math.abs(u.props.w - (s.props.w||0)) > 0.5 || Math.abs(u.props.h - (s.props.h||0)) > 0.5);
-                    return posChanged || sizeChanged;
-                });
-                
-                if (realUpdates.length > 0) {
-                    editor.updateShapes(realUpdates);
                 }
-            }, 100);
-        }
-        
-        sync(); 
-        const sub = editor.store.listen(sync)
+            }
+            
+            let needsLayout = false;
+            if (update.changes) {
+                if (Object.keys(update.changes.added).length > 0 || Object.keys(update.changes.removed).length > 0) {
+                    needsLayout = true;
+                }
+                if (update.changes.updated) {
+                    for (const record of Object.values(update.changes.updated)) {
+                        const oldS = record[0];
+                        const newS = record[1];
+                        if (oldS.typeName === 'shape' && newS.typeName === 'shape') {
+                            if (oldS.x !== newS.x || oldS.y !== newS.y || 
+                                oldS.props?.w !== newS.props?.w || oldS.props?.h !== newS.props?.h || 
+                                JSON.stringify(oldS.meta) !== JSON.stringify(newS.meta)) {
+                                needsLayout = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            const currentShapes = Array.from(editor.getCurrentPageShapes());
+            setShapes(currentShapes);
+            const sel = editor.getSelectedShapeIds();
+            setSelectedId(sel.length ? sel[0] : null);
+            setCamera({ ...editor.getCamera() });
+            
+            const editingId = editor.getEditingShapeId();
+            if (editingId) {
+                const es = editor.getShape(editingId);
+                if (es && es.type === 'geo') {
+                    editor.setEditingShape(null);
+                }
+            }
+
+            if (needsLayout && !isLayoutUpdate) {
+                clearTimeout(layoutTimeout);
+                layoutTimeout = setTimeout(() => {
+                    if (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing) return;
+                    
+                    let metaChanged = false;
+                    currentShapes.forEach(shape => {
+                        if (shape.type === 'geo') {
+                            const parent = currentShapes.find(p => p.id !== shape.id && p.type === 'geo' && isInside(shape, p));
+                            if (parent && (!parent.meta?.align || !parent.meta?.justify)) {
+                                editor.updateShape({
+                                    id: parent.id,
+                                    meta: { 
+                                        ...parent.meta, 
+                                        align: parent.meta?.align || 'flex-start', 
+                                        justify: parent.meta?.justify || 'flex-start' 
+                                    }
+                                });
+                                metaChanged = true;
+                            }
+                        }
+                    });
+                    
+                    const shapesForLayout = metaChanged ? Array.from(editor.getCurrentPageShapes()) : currentShapes;
+                    const tree = buildTree(shapesForLayout);
+                    const updates = calculateLayoutUpdates(tree);
+                    
+                    const realUpdates = updates.filter(u => {
+                        const s = editor.getShape(u.id);
+                        if (!s) return false;
+                        const posChanged = Math.abs((u.x ?? s.x) - s.x) > 0.5 || Math.abs((u.y ?? s.y) - s.y) > 0.5;
+                        const sizeChanged = u.props && (Math.abs(u.props.w - (s.props.w||0)) > 0.5 || Math.abs(u.props.h - (s.props.h||0)) > 0.5);
+                        return posChanged || sizeChanged;
+                    });
+                    
+                    if (realUpdates.length > 0) {
+                        window.__lastLayoutEngineUpdate = Date.now();
+                        editor.updateShapes(realUpdates);
+                    }
+                }, 100);
+            }
+        })
         return () => { 
             sub(); 
             clearTimeout(layoutTimeout); 
@@ -100,7 +178,10 @@ export default function App() {
         const tree = buildTree(raw)
         const updates = calculateLayoutUpdates(tree)
         
-        if (updates.length) editor.updateShapes(updates)
+        if (updates.length) {
+            window.__lastLayoutEngineUpdate = Date.now();
+            editor.updateShapes(updates);
+        }
     }, [editor, selectedId])
 
     const toggleRule = (key, value) => {
@@ -174,7 +255,7 @@ export default function App() {
                 <style>{`.tl-geo { fill: transparent !important; stroke: rgba(255,255,255,0.1) !important; } ${activeShape ? `[data-shape-id="${activeShape.id}"] { outline: 2px solid #3b82f6 !important; }` : ''}`}</style>
 
                 <PhotoLayer shapes={shapes} camera={camera} showPhotos={showPhotos} />
-                <SpacingOverlay activeShape={activeShape} camera={camera} onUpdate={runAtomicUpdate} />
+                <SpacingOverlay activeShape={activeShape} camera={camera} onUpdate={runAtomicUpdate} editor={editor} />
 
                 <Tldraw gridMode persistenceKey="flex-stable-v2000" onMount={(ed) => { 
                     setEditor(ed)
