@@ -61,8 +61,15 @@ export default function HUD({
 
                 <div className="hud-sep"></div>
 
+                <div className="hud-group segmented">
+                    <button className={meta.direction !== 'column' ? 'active' : ''} onClick={() => onUpdate({direction: 'row'}, activeShape.id)} title="Row Direction">Row</button>
+                    <button className={meta.direction === 'column' ? 'active' : ''} onClick={() => onUpdate({direction: 'column'}, activeShape.id)} title="Column Direction">Col</button>
+                </div>
+
+                <div className="hud-sep"></div>
+
                 {/* GROUP 2: FLEXBOX CONTROLS */}
-                {hasChildren && (
+                {(hasChildren || activeShape.type === 'flex') && (
                     <>
                         <div className="hud-group segmented">
                             <button className={meta.justify === 'flex-start' ? 'active' : ''} onClick={() => onToggleRule('justify', 'flex-start')} title="Align Start"><Icon name="j-start" /></button>
@@ -96,6 +103,11 @@ export default function HUD({
                         editor.updateShape({ id: activeShape.id, props: { w: isStr ? w : val }, meta: { ...meta, isFullW: isStr && val.includes('%'), isAutoW: isAuto, isGrow: false } }); 
                         onUpdate({}, activeShape.id) 
                     }} />
+                    
+                    <div className="hud-sep-mini"></div>
+                    
+                    <ScrubInput label="P" value={meta.padding ?? 20} onChange={(val) => onUpdate({ padding: val }, activeShape.id)} />
+                    <ScrubInput label="G" value={meta.gap ?? 0} onChange={(val) => onUpdate({ gap: val }, activeShape.id)} />
                     <ScrubInput label="H" value={meta.isFullH ? '100%' : (meta.isAutoH ? 'auto' : h)} onChange={(val) => { 
                         const isStr = typeof val === 'string';
                         const isAuto = isStr && val.toLowerCase() === 'auto';

@@ -4,8 +4,10 @@ import { buildCSSObject, serializeCSS } from '../engine/css-generator.js'
 const generateHTML = (nodes, indent = "") => {
     let html = "";
     nodes.forEach(n => {
-        const tag = n.tag || 'div';
-        html += `${indent}<${tag} class="${n.name}">\n`;
+        const meta = n.meta || {};
+        const tag = meta.tag || 'div';
+        const name = n.id.replace('shape:', 'box-');
+        html += `${indent}<${tag} class="${name}">\n`;
         if (n.children?.length) html += generateHTML(n.children, indent + "  ");
         html += `${indent}</${tag}>\n`;
     });

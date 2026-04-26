@@ -12,7 +12,25 @@ import SpacingOverlay from './components/SpacingOverlay'
 import GuidesLayer from './components/GuidesLayer'
 
 // Logic
-import { isInside, buildTree, calculateLayoutUpdates } from './engine/layout'
+import { isInside, buildTree, calculateLayoutUpdates, initEngine } from './engine/layout'
+import { FlexShapeUtil } from './engine/FlexShapeUtil'
+import { FlexTool } from './engine/FlexTool'
+
+const customShapeUtils = [FlexShapeUtil]
+const customTools = [FlexTool]
+
+const uiOverrides = {
+    tools(editor, tools) {
+        tools.flex = {
+            id: 'flex',
+            icon: 'frame',
+            label: 'Flex Box',
+            kbd: 'f',
+            onSelect: () => editor.setCurrentTool('flex'),
+        }
+        return tools
+    },
+}
 
 // Styles
 import 'tldraw/tldraw.css'
@@ -27,6 +45,10 @@ export default function App() {
     const [showPhotos, setShowPhotos] = useState(true)
     const [isGlobalLock, setIsGlobalLock] = useState(true)
     const fileInputRef = useRef(null)
+
+    useEffect(() => {
+        initEngine()
+    }, [])
 
     // SYNC STATE & AUTO-LAYOUT
     useEffect(() => {
@@ -121,25 +143,7 @@ export default function App() {
                 layoutTimeout = setTimeout(() => {
                     if (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing) return;
                     
-                    let metaChanged = false;
-                    currentShapes.forEach(shape => {
-                        if (shape.type === 'geo') {
-                            const parent = currentShapes.find(p => p.id !== shape.id && p.type === 'geo' && isInside(shape, p));
-                            if (parent && (!parent.meta?.align || !parent.meta?.justify)) {
-                                editor.updateShape({
-                                    id: parent.id,
-                                    meta: { 
-                                        ...parent.meta, 
-                                        align: parent.meta?.align || 'flex-start', 
-                                        justify: parent.meta?.justify || 'flex-start' 
-                                    }
-                                });
-                                metaChanged = true;
-                            }
-                        }
-                    });
-                    
-                    const shapesForLayout = metaChanged ? Array.from(editor.getCurrentPageShapes()) : currentShapes;
+                    const shapesForLayout = currentShapes;
                     const tree = buildTree(shapesForLayout);
                     const updates = calculateLayoutUpdates(tree);
                     
@@ -178,18 +182,26 @@ export default function App() {
         const tree = buildTree(raw)
         const updates = calculateLayoutUpdates(tree)
         
-        if (updates.length) {
+        // Map updates AND meta changes
+        const finalUpdates = updates.map(u => {
+            if (ids.includes(u.id)) {
+                return { ...u, meta: { ...editor.getShape(u.id).meta, ...metaOverrides } }
+            }
+            return u
+        })
+
+        if (finalUpdates.length) {
             window.__lastLayoutEngineUpdate = Date.now();
-            editor.updateShapes(updates);
+            editor.updateShapes(finalUpdates);
         }
     }, [editor, selectedId])
 
     const toggleRule = (key, value) => {
         if (!editor || !selectedId) return
         const shape = editor.getShape(selectedId); if (!shape) return
-        const current = shape.meta?.[key]; const nextValue = current === value ? null : value
-        editor.updateShape({ id: selectedId, meta: { ...shape.meta, [key]: nextValue } })
-        setTimeout(() => runAtomicUpdate({}, selectedId), 10)
+        const current = shape.meta?.[key]; 
+        const nextValue = current === value ? null : value
+        runAtomicUpdate({ [key]: nextValue }, selectedId)
     }
 
     const toggleFill = () => {
@@ -197,10 +209,10 @@ export default function App() {
         const shape = editor.getShape(selectedId); if (!shape) return
         const wasGrow = !!shape.meta?.isGrow
         if (!wasGrow) {
-            editor.updateShape({ id: selectedId, meta: { ...shape.meta, isGrow: true, baseW: shape.props.w, baseH: shape.props.h } })
-            setTimeout(() => runAtomicUpdate({}, selectedId), 10)
+            runAtomicUpdate({ isGrow: true, baseW: shape.props.w, baseH: shape.props.h }, selectedId)
         } else {
-            const bw = shape.meta?.baseW || shape.props.w; const bh = shape.meta?.baseH || shape.props.h
+            const bw = shape.meta?.baseW || shape.props.w; 
+            const bh = shape.meta?.baseH || shape.props.h
             editor.updateShape({ id: selectedId, props: { w: bw, h: bh }, meta: { ...shape.meta, isGrow: null } })
             setTimeout(() => runAtomicUpdate({}, selectedId), 10)
         }
@@ -257,10 +269,17 @@ export default function App() {
                 <PhotoLayer shapes={shapes} camera={camera} showPhotos={showPhotos} />
                 <SpacingOverlay activeShape={activeShape} camera={camera} onUpdate={runAtomicUpdate} editor={editor} />
 
-                <Tldraw gridMode persistenceKey="flex-stable-v2000" onMount={(ed) => { 
-                    setEditor(ed)
-                    ed.user.updateUserPreferences({ isSnapMode: true }) 
-                }} />
+                <Tldraw 
+                    gridMode 
+                    persistenceKey="flex-stable-v2000" 
+                    shapeUtils={customShapeUtils}
+                    tools={customTools}
+                    overrides={uiOverrides}
+                    onMount={(ed) => { 
+                        setEditor(ed)
+                        ed.user.updateUserPreferences({ isSnapMode: true }) 
+                    }} 
+                />
 
                 <HUD 
                     activeShape={activeShape}
