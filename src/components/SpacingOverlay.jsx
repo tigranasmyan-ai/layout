@@ -1,33 +1,26 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React from 'react';
+import { useDrag } from '@use-gesture/react';
 
 const Handle = ({ x, y, value, onChange, color, direction = 'vertical' }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const startPos = useRef(0);
-    const startVal = useRef(0);
-
-    const handleMouseDown = (e) => {
-        e.stopPropagation(); setIsDragging(true);
-        startPos.current = direction === 'vertical' ? e.clientY : e.clientX;
-        startVal.current = Number(value) || 0;
-        document.body.style.cursor = direction === 'vertical' ? 'ns-resize' : 'ew-resize';
-    };
-
-    useEffect(() => {
-        if (!isDragging) return;
-        const handleMouseMove = (e) => {
-            const currentPos = direction === 'vertical' ? e.clientY : e.clientX;
-            const delta = (currentPos - startPos.current) * (e.shiftKey ? 10 : 1);
-            onChange(startVal.current, delta, e.altKey);
-        };
-        const handleMouseUp = () => { setIsDragging(false); document.body.style.cursor = ''; };
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-        return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-    }, [isDragging, onChange, direction]);
+    const bind = useDrag(({ delta: [dx, dy], event, first, last, active }) => {
+        if (first) {
+            document.body.style.cursor = direction === 'vertical' ? 'ns-resize' : 'ew-resize';
+        }
+        if (active) {
+            const delta = direction === 'vertical' ? dy : dx;
+            const shiftMult = event.shiftKey ? 10 : 1;
+            onChange(Number(value) || 0, delta * shiftMult, event.altKey);
+        }
+        if (last) {
+            document.body.style.cursor = 'auto';
+        }
+    }, {
+        pointer: { capture: true }
+    });
 
     const hasValue = value > 0;
     return (
-        <div onMouseDown={handleMouseDown} style={{
+        <div {...bind()} style={{
             position: 'absolute', left: x, top: y, minWidth: hasValue ? 16 : (direction === 'vertical' ? 12 : 6),
             height: hasValue ? 16 : (direction === 'vertical' ? 6 : 12), borderRadius: hasValue ? 8 : 4,
             backgroundColor: color, border: '1.5px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
