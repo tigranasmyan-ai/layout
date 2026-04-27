@@ -6,8 +6,7 @@ const Handle = ({ x, y, value, onChange, color, direction = 'vertical' }) => {
     const startVal = useRef(0);
 
     const handleMouseDown = (e) => {
-        e.stopPropagation();
-        setIsDragging(true);
+        e.stopPropagation(); setIsDragging(true);
         startPos.current = direction === 'vertical' ? e.clientY : e.clientX;
         startVal.current = Number(value) || 0;
         document.body.style.cursor = direction === 'vertical' ? 'ns-resize' : 'ew-resize';
@@ -15,191 +14,89 @@ const Handle = ({ x, y, value, onChange, color, direction = 'vertical' }) => {
 
     useEffect(() => {
         if (!isDragging) return;
-
         const handleMouseMove = (e) => {
             const currentPos = direction === 'vertical' ? e.clientY : e.clientX;
-            const delta = currentPos - startPos.current;
-            const shiftMult = e.shiftKey ? 10 : 1;
-            const altKey = e.altKey;
-            
-            // By default, just pass the raw delta and let the parent decide how to interpret it.
-            onChange(startVal.current, delta, shiftMult, altKey);
+            const delta = (currentPos - startPos.current) * (e.shiftKey ? 10 : 1);
+            onChange(startVal.current, delta, e.altKey);
         };
-
-        const handleMouseUp = () => {
-            setIsDragging(false);
-            document.body.style.cursor = '';
-        };
-
+        const handleMouseUp = () => { setIsDragging(false); document.body.style.cursor = ''; };
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
+        return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
     }, [isDragging, onChange, direction]);
 
     const hasValue = value > 0;
-
     return (
-        <div
-            onMouseDown={handleMouseDown}
-            style={{
-                position: 'absolute',
-                left: x,
-                top: y,
-                minWidth: hasValue ? 16 : (direction === 'vertical' ? 12 : 6),
-                height: hasValue ? 16 : (direction === 'vertical' ? 6 : 12),
-                borderRadius: hasValue ? 8 : 4,
-                backgroundColor: color,
-                border: '1.5px solid white',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                transform: 'translate(-50%, -50%)',
-                cursor: direction === 'vertical' ? 'ns-resize' : 'ew-resize',
-                zIndex: 200000,
-                pointerEvents: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: 9,
-                fontWeight: 'bold',
-                padding: hasValue ? '0 4px' : '0',
-                userSelect: 'none',
-                fontFamily: 'sans-serif',
-                transition: 'all 0.15s ease-out'
-            }}
-        >
-            {hasValue ? value : ''}
+        <div onMouseDown={handleMouseDown} style={{
+            position: 'absolute', left: x, top: y, minWidth: hasValue ? 16 : (direction === 'vertical' ? 12 : 6),
+            height: hasValue ? 16 : (direction === 'vertical' ? 6 : 12), borderRadius: hasValue ? 8 : 4,
+            backgroundColor: color, border: '1.5px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            transform: 'translate(-50%, -50%)', cursor: direction === 'vertical' ? 'ns-resize' : 'ew-resize',
+            zIndex: 200000, pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontSize: 9, fontWeight: 'bold', padding: hasValue ? '0 4px' : '0', userSelect: 'none',
+            fontFamily: 'sans-serif', transition: 'all 0.15s ease-out'
+        }}>
+            {hasValue ? value : (value === 'A' ? 'A' : '')}
         </div>
     );
 };
 
 const AutoBtn = ({ x, y, active, onClick }) => (
-    <div
-        onMouseDown={(e) => { e.stopPropagation(); onClick(); }}
-        style={{
-            position: 'absolute',
-            left: x, top: y,
-            width: 14, height: 14, borderRadius: 4,
-            background: active ? '#ff9800' : 'rgba(255, 152, 0, 0.2)',
-            color: active ? '#fff' : '#ff9800',
-            fontSize: 9, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', pointerEvents: 'auto', transform: 'translate(-50%, -50%)', zIndex: 200001,
-            userSelect: 'none', border: '1px solid rgba(255, 152, 0, 0.5)'
-        }}
-    >
-        A
-    </div>
+    <div onMouseDown={(e) => { e.stopPropagation(); onClick(); }} style={{
+        position: 'absolute', left: x, top: y, width: 14, height: 14, borderRadius: 4,
+        background: active ? '#ff9800' : 'rgba(255, 152, 0, 0.2)', color: active ? '#fff' : '#ff9800',
+        fontSize: 9, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', pointerEvents: 'auto', transform: 'translate(-50%, -50%)', zIndex: 200001,
+        userSelect: 'none', border: '1px solid rgba(255, 152, 0, 0.5)'
+    }}>A</div>
 );
 
-export default function SpacingOverlay({ activeShape, camera, onUpdate, editor }) {
+export default function SpacingOverlay({ activeShape, camera, onUpdate }) {
     if (!activeShape || activeShape.type !== 'geo') return null;
 
-    const meta = activeShape.meta || {};
-    const pT = Number(meta.paddingTop ?? meta.padding) || 0;
-    const pR = Number(meta.paddingRight ?? meta.padding) || 0;
-    const pB = Number(meta.paddingBottom ?? meta.padding) || 0;
-    const pL = Number(meta.paddingLeft ?? meta.padding) || 0;
-    const mT = Number(meta.marginTop ?? meta.margin) || 0;
-    const mR = Number(meta.marginRight ?? meta.margin) || 0;
-    const mB = Number(meta.marginBottom ?? meta.margin) || 0;
-    const mL = Number(meta.marginLeft ?? meta.margin) || 0;
+    const m = activeShape.meta || {};
+    const z = camera.z;
+    const x = (activeShape.x + camera.x) * z, y = (activeShape.y + camera.y) * z;
+    const w = (activeShape.props?.w || 0) * z, h = (activeShape.props?.h || 0) * z;
 
-    const isMtA = !!meta.mtA;
-    const isMrA = !!meta.mrA;
-    const isMbA = !!meta.mbA;
-    const isMlA = !!meta.mlA;
+    const getVal = (p, fallback) => Number(m[p] ?? m[fallback]) || 0;
+    const p = { t: getVal('paddingTop', 'padding'), r: getVal('paddingRight', 'padding'), b: getVal('paddingBottom', 'padding'), l: getVal('paddingLeft', 'padding') };
+    const ma = { t: getVal('marginTop', 'margin'), r: getVal('marginRight', 'margin'), b: getVal('marginBottom', 'margin'), l: getVal('marginLeft', 'margin') };
 
-    const x = (activeShape.x + camera.x) * camera.z;
-    const y = (activeShape.y + camera.y) * camera.z;
-    const w = (activeShape.props?.w || 0) * camera.z;
-    const h = (activeShape.props?.h || 0) * camera.z;
-
-    const pTz = pT * camera.z; const pRz = pR * camera.z; const pBz = pB * camera.z; const pLz = pL * camera.z;
-    const mTz = mT * camera.z; const mRz = mR * camera.z; const mBz = mB * camera.z; const mLz = mL * camera.z;
-
-    const makeHandleChange = (multiplier, propName, isPadding) => (startVal, delta, shiftMult, altKey) => {
-        const change = Math.round((delta * multiplier) / camera.z) * (shiftMult > 1 ? 2 : 1);
-        let newVal = startVal + change;
-        if (newVal < 0) newVal = 0;
-        
-        if (isPadding) {
-            const maxW = (activeShape.props?.w || 0) / 2;
-            const maxH = (activeShape.props?.h || 0) / 2;
-            const maxP = (propName === 'paddingTop' || propName === 'paddingBottom') ? maxH : maxW;
-            if (newVal > maxP) newVal = Math.round(maxP);
+    const handleUpdate = (prop, mult, isP) => (start, delta, alt) => {
+        let val = Math.max(0, start + Math.round(delta * mult / z));
+        if (isP) {
+            const max = (prop.includes('Top') || prop.includes('Bottom') ? h : w) / (2 * z);
+            if (val > max) val = Math.round(max);
         }
-        
-        if (altKey) {
-            onUpdate({ 
-                [isPadding ? 'paddingTop' : 'marginTop']: newVal,
-                [isPadding ? 'paddingRight' : 'marginRight']: newVal,
-                [isPadding ? 'paddingBottom' : 'marginBottom']: newVal,
-                [isPadding ? 'paddingLeft' : 'marginLeft']: newVal,
-                [isPadding ? 'padding' : 'margin']: newVal
-            }, activeShape.id);
-        } else {
-            onUpdate({ [propName]: newVal }, activeShape.id);
-        }
+        if (alt) {
+            const prefix = isP ? 'padding' : 'margin';
+            onUpdate({ [prefix+'Top']: val, [prefix+'Right']: val, [prefix+'Bottom']: val, [prefix+'Left']: val, [prefix]: val }, activeShape.id);
+        } else onUpdate({ [prop]: val }, activeShape.id);
     };
 
-    const handleMarginTop = makeHandleChange(-1, 'marginTop', false);
-    const handleMarginBottom = makeHandleChange(1, 'marginBottom', false);
-    const handleMarginLeft = makeHandleChange(-1, 'marginLeft', false);
-    const handleMarginRight = makeHandleChange(1, 'marginRight', false);
-
-    const handlePaddingTop = makeHandleChange(1, 'paddingTop', true);
-    const handlePaddingBottom = makeHandleChange(-1, 'paddingBottom', true);
-    const handlePaddingLeft = makeHandleChange(1, 'paddingLeft', true);
-    const handlePaddingRight = makeHandleChange(-1, 'paddingRight', true);
+    const sides = [
+        { name: 'Top', mult: -1, isP: false, color: '#ff9800', dir: 'vertical', pos: () => ({ x: x+w/2, y: y-ma.t*z-8 }), val: m.mtA ? 'A' : ma.t, autoKey: 'mtA' },
+        { name: 'Bottom', mult: 1, isP: false, color: '#ff9800', dir: 'vertical', pos: () => ({ x: x+w/2, y: y+h+ma.b*z+8 }), val: m.mbA ? 'A' : ma.b, autoKey: 'mbA' },
+        { name: 'Left', mult: -1, isP: false, color: '#ff9800', dir: 'horizontal', pos: () => ({ x: x-ma.l*z-8, y: y+h/2 }), val: m.mlA ? 'A' : ma.l, autoKey: 'mlA' },
+        { name: 'Right', mult: 1, isP: false, color: '#ff9800', dir: 'horizontal', pos: () => ({ x: x+w+ma.r*z+8, y: y+h/2 }), val: m.mrA ? 'A' : ma.r, autoKey: 'mrA' },
+        { name: 'Top', mult: 1, isP: true, color: '#4caf50', dir: 'vertical', pos: () => ({ x: x+w/2, y: y+p.t*z+8 }), val: p.t },
+        { name: 'Bottom', mult: -1, isP: true, color: '#4caf50', dir: 'vertical', pos: () => ({ x: x+w/2, y: y+h-p.b*z-8 }), val: p.b },
+        { name: 'Left', mult: 1, isP: true, color: '#4caf50', dir: 'horizontal', pos: () => ({ x: x+p.l*z+8, y: y+h/2 }), val: p.l },
+        { name: 'Right', mult: -1, isP: true, color: '#4caf50', dir: 'horizontal', pos: () => ({ x: x+w-p.r*z-8, y: y+h/2 }), val: p.r },
+    ];
 
     return (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 100000 }}>
-            {/* Margin Zone Border */}
-            <div style={{
-                position: 'absolute',
-                left: x - mLz,
-                top: y - mTz,
-                width: w + mLz + mRz,
-                height: h + mTz + mBz,
-                boxSizing: 'border-box',
-                borderStyle: 'solid',
-                borderColor: 'rgba(255, 152, 0, 0.2)',
-                borderWidth: `${mTz}px ${mRz}px ${mBz}px ${mLz}px`,
-            }} />
-
-            {/* Margin Handles (Absolute Screen Coordinates) */}
-            <Handle x={x + w / 2} y={y - mTz - 8} value={isMtA ? 'A' : mT} onChange={handleMarginTop} color="#ff9800" direction="vertical" />
-            <Handle x={x + w / 2} y={y + h + mBz + 8} value={isMbA ? 'A' : mB} onChange={handleMarginBottom} color="#ff9800" direction="vertical" />
-            <Handle x={x - mLz - 8} y={y + h / 2} value={isMlA ? 'A' : mL} onChange={handleMarginLeft} color="#ff9800" direction="horizontal" />
-            <Handle x={x + w + mRz + 8} y={y + h / 2} value={isMrA ? 'A' : mR} onChange={handleMarginRight} color="#ff9800" direction="horizontal" />
-
-            {/* Auto Margin Buttons */}
-            <AutoBtn x={x + w / 2 + 20} y={y - mTz - 8} active={isMtA} onClick={() => onUpdate({ mtA: !isMtA }, activeShape.id)} />
-            <AutoBtn x={x + w / 2 + 20} y={y + h + mBz + 8} active={isMbA} onClick={() => onUpdate({ mbA: !isMbA }, activeShape.id)} />
-            <AutoBtn x={x - mLz - 8} y={y + h / 2 - 20} active={isMlA} onClick={() => onUpdate({ mlA: !isMlA }, activeShape.id)} />
-            <AutoBtn x={x + w + mRz + 8} y={y + h / 2 - 20} active={isMrA} onClick={() => onUpdate({ mrA: !isMrA }, activeShape.id)} />
-
-            {/* Padding Zone Border */}
-            <div style={{
-                position: 'absolute',
-                left: x,
-                top: y,
-                width: w,
-                height: h,
-                boxSizing: 'border-box',
-                borderStyle: 'solid',
-                borderColor: 'rgba(76, 175, 80, 0.2)',
-                borderWidth: `${pTz}px ${pRz}px ${pBz}px ${pLz}px`,
-            }} />
-
-            {/* Padding Handles (Absolute Screen Coordinates) */}
-            <Handle x={x + w / 2} y={y + pTz + 8} value={pT} onChange={handlePaddingTop} color="#4caf50" direction="vertical" />
-            <Handle x={x + w / 2} y={y + h - pBz - 8} value={pB} onChange={handlePaddingBottom} color="#4caf50" direction="vertical" />
-            <Handle x={x + pLz + 8} y={y + h / 2} value={pL} onChange={handlePaddingLeft} color="#4caf50" direction="horizontal" />
-            <Handle x={x + w - pRz - 8} y={y + h / 2} value={pR} onChange={handlePaddingRight} color="#4caf50" direction="horizontal" />
+            <div style={{ position: 'absolute', left: x-ma.l*z, top: y-ma.t*z, width: w+(ma.l+ma.r)*z, height: h+(ma.t+ma.b)*z, border: 'solid rgba(255,152,0,0.2)', borderWidth: `${ma.t*z}px ${ma.r*z}px ${ma.b*z}px ${ma.l*z}px`, boxSizing: 'border-box' }} />
+            <div style={{ position: 'absolute', left: x, top: y, width: w, height: h, border: 'solid rgba(76,175,80,0.2)', borderWidth: `${p.t*z}px ${p.r*z}px ${p.b*z}px ${p.l*z}px`, boxSizing: 'border-box' }} />
+            
+            {sides.map((s, i) => (
+                <React.Fragment key={i}>
+                    <Handle {...s.pos()} value={s.val} color={s.color} direction={s.dir} onChange={handleUpdate((s.isP?'padding':'margin')+s.name, s.mult, s.isP)} />
+                    {s.autoKey && <AutoBtn x={s.pos().x + (s.dir==='vertical'?20:0)} y={s.pos().y + (s.dir==='horizontal'?-20:0)} active={!!m[s.autoKey]} onClick={() => onUpdate({ [s.autoKey]: !m[s.autoKey] }, activeShape.id)} />}
+                </React.Fragment>
+            ))}
         </div>
     );
 }

@@ -8,6 +8,7 @@ export const initEngine = async () => {
     return Yoga
 }
 
+// Утилита для парсинга инлайнового CSS
 export const parseCSS = (css) => {
     const obj = {}; if (!css) return obj
     css.split(';').forEach(pair => {
@@ -20,36 +21,33 @@ export const parseCSS = (css) => {
     return obj
 }
 
+// Проверка вложенности (30px запас для стабильности захвата)
 export const isInside = (child, parent) => {
-    if (!child || !parent) return false
-    if (child.id === parent.id) return false
-    if (child.type !== 'geo' && child.type !== 'flex') return false
-    if (parent.type !== 'geo' && parent.type !== 'flex') return false
-    
+    if (!child || !parent || child.id === parent.id) return false
     const margin = 30 
-    const cx = child.x, cy = child.y, cw = child.props?.w ?? 100, ch = child.props?.h ?? 100
-    const px = parent.x, py = parent.y, pw = parent.props?.w ?? 100, ph = parent.props?.h ?? 100
+    const c = { x: child.x, y: child.y, w: child.props?.w ?? 100, h: child.props?.h ?? 100 }
+    const p = { x: parent.x, y: parent.y, w: parent.props?.w ?? 100, h: parent.props?.h ?? 100 }
     
     return (
-        cx >= px - margin &&
-        cy >= py - margin &&
-        (cx + cw) <= (px + pw) + margin &&
-        (cy + ch) <= (px + ph) + margin
+        c.x >= p.x - margin &&
+        c.y >= p.y - margin &&
+        (c.x + c.w) <= (p.x + p.w) + margin &&
+        (c.y + c.h) <= (p.y + p.h) + margin
     )
 }
 
+// Построение иерархии блоков
 export const buildTree = (shapes) => {
     const geos = shapes.filter(s => s.type === 'geo' || s.type === 'flex')
     if (!geos.length) return []
     
-    const sorted = [...geos].sort((a,b) => {
-        const aArea = (a.props?.w || 100) * (a.props?.h || 100)
-        const bArea = (b.props?.w || 100) * (b.props?.h || 100)
-        return bArea - aArea
-    })
+    const sorted = [...geos].sort((a,b) => 
+        ((b.props?.w||100)*(b.props?.h||100)) - ((a.props?.w||100)*(a.props?.h||100))
+    )
     
     const build = (curr, others) => {
-        const kids = others.filter(o => isInside(o, curr)).filter(k => !others.some(m => m !== k && isInside(m, curr) && isInside(k, m)))
+        const kids = others.filter(o => isInside(o, curr))
+            .filter(k => !others.some(m => m !== k && isInside(m, curr) && isInside(k, m)))
         
         return {
             ...curr,
@@ -69,63 +67,42 @@ export const calculateLayoutUpdates = (treeNodes) => {
 
     const buildYogaNode = (n) => {
         const node = Yoga.Node.create()
-        const meta = n.meta || {}
+        const m = n.meta || {}
         
-        node.setFlexDirection(meta.direction === 'column' ? Yoga.FLEX_DIRECTION_COLUMN : Yoga.FLEX_DIRECTION_ROW)
-        
-        // Wrap support
-        if (meta.isWrap) {
-            node.setFlexWrap(Yoga.WRAP_WRAP)
-        }
+        // Настройки Flexbox
+        node.setFlexDirection(m.direction === 'column' ? Yoga.FLEX_DIRECTION_COLUMN : Yoga.FLEX_DIRECTION_ROW)
+        if (m.isWrap) node.setFlexWrap(Yoga.WRAP_WRAP)
+        if (m.isGrow) node.setFlexGrow(1)
 
-        if (meta.justify === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
-        else if (meta.justify === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
-        else if (meta.justify === 'space-between') node.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN)
-        else node.setJustifyContent(Yoga.JUSTIFY_FLEX_START)
+        // Justify
+        const justifyMap = { 'center': Yoga.JUSTIFY_CENTER, 'flex-end': Yoga.JUSTIFY_FLEX_END, 'space-between': Yoga.JUSTIFY_SPACE_BETWEEN }
+        node.setJustifyContent(justifyMap[m.justify] || Yoga.JUSTIFY_FLEX_START)
 
-        if (meta.align === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
-        else if (meta.align === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
-        else if (meta.align === 'stretch') node.setAlignItems(Yoga.ALIGN_STRETCH)
-        else node.setAlignItems(Yoga.ALIGN_FLEX_START)
+        // Align
+        const alignMap = { 'center': Yoga.ALIGN_CENTER, 'flex-end': Yoga.ALIGN_FLEX_END, 'stretch': Yoga.ALIGN_STRETCH }
+        node.setAlignItems(alignMap[m.align] || Yoga.ALIGN_FLEX_START)
 
-        if (meta.isGrow) node.setFlexGrow(1)
-        
-        // Width / Height (Support AUTO)
-        if (meta.isAutoW) node.setWidthAuto()
-        else node.setWidth(n.w)
-        
-        if (meta.isAutoH) node.setHeightAuto()
-        else node.setHeight(n.h)
+        // Sizing
+        if (m.isAutoW) node.setWidthAuto(); else node.setWidth(n.w)
+        if (m.isAutoH) node.setHeightAuto(); else node.setHeight(n.h)
 
-        const pT = meta.paddingTop ?? meta.padding ?? 20
-        const pR = meta.paddingRight ?? meta.padding ?? 20
-        const pB = meta.paddingBottom ?? meta.padding ?? 20
-        const pL = meta.paddingLeft ?? meta.padding ?? 20
-        node.setPadding(Yoga.EDGE_TOP, pT)
-        node.setPadding(Yoga.EDGE_RIGHT, pR)
-        node.setPadding(Yoga.EDGE_BOTTOM, pB)
-        node.setPadding(Yoga.EDGE_LEFT, pL)
+        // Spacing
+        const pad = (side) => m[`padding${side}`] ?? m.padding ?? 20
+        node.setPadding(Yoga.EDGE_TOP, pad('Top'))
+        node.setPadding(Yoga.EDGE_RIGHT, pad('Right'))
+        node.setPadding(Yoga.EDGE_BOTTOM, pad('Bottom'))
+        node.setPadding(Yoga.EDGE_LEFT, pad('Left'))
 
-        const sides = [
-            { edge: Yoga.EDGE_TOP, val: meta.marginTop, auto: meta.mtA, fallback: meta.margin },
-            { edge: Yoga.EDGE_RIGHT, val: meta.marginRight, auto: meta.mrA, fallback: meta.margin },
-            { edge: Yoga.EDGE_BOTTOM, val: meta.marginBottom, auto: meta.mbA, fallback: meta.margin },
-            { edge: Yoga.EDGE_LEFT, val: meta.marginLeft, auto: meta.mlA, fallback: meta.margin }
-        ]
-        
-        sides.forEach(s => {
-            if (s.auto) node.setMarginAuto(s.edge)
-            else node.setMargin(s.edge, s.val ?? s.fallback ?? 0)
-        })
+        const setMargin = (edge, val, auto) => auto ? node.setMarginAuto(edge) : node.setMargin(edge, val ?? m.margin ?? 0)
+        setMargin(Yoga.EDGE_TOP, m.marginTop, m.mtA)
+        setMargin(Yoga.EDGE_RIGHT, m.marginRight, m.mrA)
+        setMargin(Yoga.EDGE_BOTTOM, m.marginBottom, m.mbA)
+        setMargin(Yoga.EDGE_LEFT, m.marginLeft, m.mlA)
 
-        const gap = meta.gap ?? 0
-        if (node.setGap) node.setGap(Yoga.GUTTER_ALL, gap)
+        if (m.gap && node.setGap) node.setGap(Yoga.GUTTER_ALL, m.gap)
 
         if (n.children?.length) {
-            n.children.forEach((c, idx) => {
-                const childNode = buildYogaNode(c)
-                node.insertChild(childNode.yogaNode, idx)
-            })
+            n.children.forEach((c, idx) => node.insertChild(buildYogaNode(c).yogaNode, idx))
         }
 
         return { yogaNode: node, source: n }
@@ -133,30 +110,20 @@ export const calculateLayoutUpdates = (treeNodes) => {
 
     treeNodes.forEach(root => {
         const { yogaNode } = buildYogaNode(root)
-        // Если корень AUTO, он тоже должен уметь считаться
         yogaNode.calculateLayout(root.w, root.h, Yoga.DIRECTION_LTR)
 
         const sync = (yNode, sNode, offX = 0, offY = 0) => {
-            const layout = yNode.getComputedLayout()
-            const newX = Math.round(offX + layout.left)
-            const newY = Math.round(offY + layout.top)
-            const newW = Math.round(layout.width)
-            const newH = Math.round(layout.height)
+            const l = yNode.getComputedLayout()
+            const x = Math.round(offX + l.left), y = Math.round(offY + l.top)
+            const w = Math.round(l.width), h = Math.round(l.height)
 
-            const hasMoved = Math.abs(newX - sNode.x) > 0.1 || Math.abs(newY - sNode.y) > 0.1;
-            const hasResized = Math.abs(newW - (sNode.props?.w || 100)) > 0.1 || Math.abs(newH - (sNode.props?.h || 100)) > 0.1;
-
-            if (hasMoved || hasResized) {
-                updates.push({
-                    id: sNode.id,
-                    x: newX,
-                    y: newY,
-                    props: { w: newW, h: newH }
-                })
+            if (Math.abs(x - sNode.x) > 0.1 || Math.abs(y - sNode.y) > 0.1 || 
+                Math.abs(w - (sNode.props?.w||0)) > 0.1 || Math.abs(h - (sNode.props?.h||0)) > 0.1) {
+                updates.push({ id: sNode.id, x, y, props: { w, h } })
             }
 
             for (let i = 0; i < yNode.getChildCount(); i++) {
-                sync(yNode.getChild(i), sNode.children[i], newX, newY)
+                sync(yNode.getChild(i), sNode.children[i], x, y)
             }
         }
 
