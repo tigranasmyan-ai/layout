@@ -16,6 +16,11 @@ export const buildCSSObject = (nodes) => {
             rule['flex-direction'] = 'column';
         }
 
+        // Flex Wrap
+        if (meta.isWrap) {
+            rule['flex-wrap'] = 'wrap';
+        }
+
         // Justify Content
         if (meta.justify && meta.justify !== 'flex-start') {
             rule['justify-content'] = meta.justify;

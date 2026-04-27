@@ -89,6 +89,7 @@ export default function HUD({
 
                 {/* GROUP 3: BEHAVIOR CONTROLS */}
                 <div className="hud-group">
+                    <button className={`hud-btn-pill ${meta.isWrap ? 'active' : ''}`} onClick={() => onUpdate({isWrap: !meta.isWrap}, activeShape.id)}>WRAP</button>
                     <button className={`hud-btn-pill ${meta.isFullH ? 'active' : ''}`} onClick={() => onUpdate({isFullH: !meta.isFullH}, activeShape.id)}>H100</button>
                     <button className={`hud-btn-pill ${meta.isGrow ? 'active' : ''}`} onClick={() => onToggleFill()} title="Fill Space"><Icon name="fill" /></button>
                 </div>

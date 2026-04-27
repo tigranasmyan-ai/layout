@@ -73,6 +73,11 @@ export const calculateLayoutUpdates = (treeNodes) => {
         
         node.setFlexDirection(meta.direction === 'column' ? Yoga.FLEX_DIRECTION_COLUMN : Yoga.FLEX_DIRECTION_ROW)
         
+        // Wrap support
+        if (meta.isWrap) {
+            node.setFlexWrap(Yoga.WRAP_WRAP)
+        }
+
         if (meta.justify === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
         else if (meta.justify === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
         else if (meta.justify === 'space-between') node.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN)
@@ -84,10 +89,14 @@ export const calculateLayoutUpdates = (treeNodes) => {
         else node.setAlignItems(Yoga.ALIGN_FLEX_START)
 
         if (meta.isGrow) node.setFlexGrow(1)
-        node.setWidth(n.w)
-        node.setHeight(n.h)
+        
+        // Width / Height (Support AUTO)
+        if (meta.isAutoW) node.setWidthAuto()
+        else node.setWidth(n.w)
+        
+        if (meta.isAutoH) node.setHeightAuto()
+        else node.setHeight(n.h)
 
-        // Padding (Индивидуальные стороны)
         const pT = meta.paddingTop ?? meta.padding ?? 20
         const pR = meta.paddingRight ?? meta.padding ?? 20
         const pB = meta.paddingBottom ?? meta.padding ?? 20
@@ -97,7 +106,6 @@ export const calculateLayoutUpdates = (treeNodes) => {
         node.setPadding(Yoga.EDGE_BOTTOM, pB)
         node.setPadding(Yoga.EDGE_LEFT, pL)
 
-        // Margin (Индивидуальные стороны + Auto)
         const sides = [
             { edge: Yoga.EDGE_TOP, val: meta.marginTop, auto: meta.mtA, fallback: meta.margin },
             { edge: Yoga.EDGE_RIGHT, val: meta.marginRight, auto: meta.mrA, fallback: meta.margin },
@@ -110,7 +118,6 @@ export const calculateLayoutUpdates = (treeNodes) => {
             else node.setMargin(s.edge, s.val ?? s.fallback ?? 0)
         })
 
-        // Gap
         const gap = meta.gap ?? 0
         if (node.setGap) node.setGap(Yoga.GUTTER_ALL, gap)
 
@@ -126,6 +133,7 @@ export const calculateLayoutUpdates = (treeNodes) => {
 
     treeNodes.forEach(root => {
         const { yogaNode } = buildYogaNode(root)
+        // Если корень AUTO, он тоже должен уметь считаться
         yogaNode.calculateLayout(root.w, root.h, Yoga.DIRECTION_LTR)
 
         const sync = (yNode, sNode, offX = 0, offY = 0) => {
@@ -135,12 +143,17 @@ export const calculateLayoutUpdates = (treeNodes) => {
             const newW = Math.round(layout.width)
             const newH = Math.round(layout.height)
 
-            updates.push({
-                id: sNode.id,
-                x: newX,
-                y: newY,
-                props: { w: newW, h: newH }
-            })
+            const hasMoved = Math.abs(newX - sNode.x) > 0.1 || Math.abs(newY - sNode.y) > 0.1;
+            const hasResized = Math.abs(newW - (sNode.props?.w || 100)) > 0.1 || Math.abs(newH - (sNode.props?.h || 100)) > 0.1;
+
+            if (hasMoved || hasResized) {
+                updates.push({
+                    id: sNode.id,
+                    x: newX,
+                    y: newY,
+                    props: { w: newW, h: newH }
+                })
+            }
 
             for (let i = 0; i < yNode.getChildCount(); i++) {
                 sync(yNode.getChild(i), sNode.children[i], newX, newY)

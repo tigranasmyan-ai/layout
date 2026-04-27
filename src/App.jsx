@@ -140,26 +140,33 @@ export default function App() {
 
             if (needsLayout && !isLayoutUpdate) {
                 clearTimeout(layoutTimeout);
+                const wasAdded = update.changes && Object.keys(update.changes.added).length > 0;
+                if (wasAdded) window.__lastLayoutEngineUpdate = 0;
+
                 layoutTimeout = setTimeout(() => {
-                    if (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing) return;
+                    // Safety check: don't layout while dragging unless it's a new shape
+                    if (!wasAdded && (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing)) return;
                     
-                    const shapesForLayout = currentShapes;
+                    const shapesForLayout = Array.from(editor.getCurrentPageShapes());
                     const tree = buildTree(shapesForLayout);
                     const updates = calculateLayoutUpdates(tree);
                     
                     const realUpdates = updates.filter(u => {
                         const s = editor.getShape(u.id);
                         if (!s) return false;
-                        const posChanged = Math.abs((u.x ?? s.x) - s.x) > 0.5 || Math.abs((u.y ?? s.y) - s.y) > 0.5;
-                        const sizeChanged = u.props && (Math.abs(u.props.w - (s.props.w||0)) > 0.5 || Math.abs(u.props.h - (s.props.h||0)) > 0.5);
+                        const posChanged = Math.abs((u.x ?? s.x) - s.x) > 0.1 || Math.abs((u.y ?? s.y) - s.y) > 0.1;
+                        const sizeChanged = u.props && (Math.abs(u.props.w - (s.props.w||0)) > 0.1 || Math.abs(u.props.h - (s.props.h||0)) > 0.1);
                         return posChanged || sizeChanged;
                     });
                     
                     if (realUpdates.length > 0) {
                         window.__lastLayoutEngineUpdate = Date.now();
-                        editor.updateShapes(realUpdates);
+                        // Use editor.run to ensure atomicity and ignore history for layout jumps
+                        editor.run(() => {
+                            editor.updateShapes(realUpdates);
+                        }, { history: 'ignore' });
                     }
-                }, 100);
+                }, wasAdded ? 50 : 100);
             }
         })
         return () => { 
@@ -182,7 +189,13 @@ export default function App() {
         const tree = buildTree(raw)
         const updates = calculateLayoutUpdates(tree)
         
-        // Map updates AND meta changes
+        // Ensure meta changes for the targeted shapes are ALWAYS included
+        ids.forEach(id => {
+            if (!updates.some(u => u.id === id)) {
+                updates.push({ id, meta: { ...editor.getShape(id).meta, ...metaOverrides } })
+            }
+        })
+
         const finalUpdates = updates.map(u => {
             if (ids.includes(u.id)) {
                 return { ...u, meta: { ...editor.getShape(u.id).meta, ...metaOverrides } }
