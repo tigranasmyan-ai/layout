@@ -13,10 +13,11 @@ import ColorManager from './components/ColorManager'
 
 // Hooks
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useBlockLogic } from './hooks/useBlockLogic'
 
 // Store & Constants
 import { layoutReducer, initialState } from './store/layoutReducer'
-import { DEFAULT_BLOCK_META, COLORS } from './constants'
+import { COLORS } from './constants'
 
 const theme = createTheme({
     primaryColor: 'indigo',
@@ -25,14 +26,18 @@ const theme = createTheme({
 
 function App() {
     const [state, dispatch] = useReducer(layoutReducer, initialState);
-    const [selectedId, setSelectedId] = useState(null);
+    
+    // Модалки
     const [showCode, setShowCode] = useState(false);
     const [assetManagerOpened, setAssetManagerOpened] = useState(false);
     const [fontManagerOpened, setFontManagerOpened] = useState(false);
     const [colorManagerOpened, setColorManagerOpened] = useState(false);
-    
-    // Буфер обмена
-    const [clipboard, setClipboard] = useState(null);
+
+    // Основная логика блоков (вынесена в хук)
+    const {
+        selectedId, setSelectedId, addBlock, updateBlockMeta, deleteBlocks,
+        copyBlocks, pasteBlocks, pushToHistory, setBlocksSilent
+    } = useBlockLogic(state, dispatch);
 
     const firstSelectedId = useMemo(() => selectedId?.split(',')[0], [selectedId]);
     const activeShape = useMemo(() => state.blocks.find(b => b && b.id === firstSelectedId), [state.blocks, firstSelectedId]);
@@ -52,113 +57,7 @@ function App() {
         link.href = `https://fonts.googleapis.com/css2?${familyQuery}&display=swap`;
     }, [state.fonts]);
 
-    const pushToHistory = useCallback((newBlocksOrFunc) => {
-        dispatch({ type: 'PUSH_BLOCKS', payload: typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(state.blocks) : newBlocksOrFunc });
-    }, [state.blocks]);
-
-    const setBlocksSilent = useCallback((newBlocksOrFunc) => {
-        dispatch({ type: 'SET_BLOCKS', payload: typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(state.blocks) : newBlocksOrFunc });
-    }, [state.blocks]);
-
-    const addBlock = useCallback((parentId = null, count = 1) => {
-        const actualParentId = parentId || selectedId;
-        const newBlocks = [];
-        for (let i = 0; i < count; i++) {
-            newBlocks.push({
-                id: 'block_' + Math.random().toString(36).substr(2, 9),
-                parentId: actualParentId,
-                x: actualParentId ? 0 : 100 + ((state.blocks.length + i) * 20),
-                y: actualParentId ? 0 : 100 + ((state.blocks.length + i) * 20),
-                w: actualParentId ? 100 : 200,
-                h: actualParentId ? 100 : 200,
-                meta: { ...DEFAULT_BLOCK_META }
-            });
-        }
-        pushToHistory([...state.blocks, ...newBlocks]);
-        setSelectedId(newBlocks[newBlocks.length - 1].id);
-    }, [selectedId, state.blocks, pushToHistory]);
-
-    // ЛОГИКА КОПИРОВАНИЯ
-    const copyBlocks = useCallback(() => {
-        if (!selectedId) return;
-        const idsToCopy = selectedId.split(',');
-        
-        const getRecursive = (ids, currentBlocks) => {
-            let res = [];
-            ids.forEach(id => {
-                const block = currentBlocks.find(b => b.id === id);
-                if (block) {
-                    res.push(block);
-                    const children = currentBlocks.filter(b => b.parentId === id);
-                    if (children.length > 0) {
-                        res = [...res, ...getRecursive(children.map(c => c.id), currentBlocks)];
-                    }
-                }
-            });
-            return res;
-        };
-
-        const blocksToCopy = getRecursive(idsToCopy, state.blocks);
-        setClipboard(JSON.parse(JSON.stringify(blocksToCopy))); // Глубокая копия
-    }, [selectedId, state.blocks]);
-
-    // ЛОГИКА ВСТАВКИ
-    const pasteBlocks = useCallback(() => {
-        if (!clipboard || clipboard.length === 0) return;
-
-        const targetParentId = selectedId || null;
-        const idMap = {};
-        
-        // Генерируем новые ID и сохраняем связи
-        const newPastedBlocks = clipboard.map(b => {
-            const newId = 'block_' + Math.random().toString(36).substr(2, 9);
-            idMap[b.id] = newId;
-            return { ...b, id: newId };
-        });
-
-        // Обновляем parentId на основе новой карты ID
-        const finalBlocks = newPastedBlocks.map(b => {
-            let newParentId = targetParentId;
-            // Если у блока был родитель ВНУТРИ скопированной группы, сохраняем эту связь
-            if (idMap[b.parentId]) {
-                newParentId = idMap[b.parentId];
-            }
-            
-            // Если это "корневой" блок из скопированных, и мы вставляем его на холст (без родителя),
-            // чуть сместим его координаты, чтобы не перекрывал оригинал
-            const isRootOfPasted = !idMap[b.parentId];
-            return { 
-                ...b, 
-                parentId: newParentId,
-                x: (isRootOfPasted && !newParentId) ? b.x + 40 : b.x,
-                y: (isRootOfPasted && !newParentId) ? b.y + 40 : b.y
-            };
-        });
-
-        pushToHistory([...state.blocks, ...finalBlocks]);
-        setSelectedId(finalBlocks[0].id);
-    }, [clipboard, selectedId, state.blocks, pushToHistory]);
-
-    const updateBlockMeta = useCallback((id, key, value) => {
-        pushToHistory(prev => prev.map(b => b && b.id === id ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b));
-    }, [pushToHistory]);
-
-    const deleteBlocks = useCallback((idsString) => {
-        if (!idsString) return;
-        const idsToDelete = idsString.split(',');
-        const deleteRecursive = (ids, currentBlocks) => {
-            let res = currentBlocks;
-            ids.forEach(id => {
-                const children = res.filter(b => b && b.parentId === id);
-                if (children.length > 0) res = deleteRecursive(children.map(c => c.id), res);
-                res = res.filter(b => b && b.id !== id);
-            });
-            return res;
-        };
-        pushToHistory(prev => deleteRecursive(idsToDelete, prev));
-        setSelectedId(null);
-    }, [pushToHistory]);
-
+    // Keyboard Shortcuts
     useKeyboardShortcuts({ 
         selectedId, deleteBlocks, 
         onUndo: () => dispatch({ type: 'UNDO' }), 
@@ -167,6 +66,7 @@ function App() {
         onPaste: pasteBlocks
     });
 
+    // Вспомогательные хендлеры
     const updateBlueprint = useCallback((payload) => dispatch({ type: 'UPDATE_BLUEPRINT', payload }), []);
     const onAddAsset = (asset) => dispatch({ type: 'ADD_ASSET', payload: asset });
     const onRemoveAsset = (id) => dispatch({ type: 'REMOVE_ASSET', payload: id });
