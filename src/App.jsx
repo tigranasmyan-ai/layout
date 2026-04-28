@@ -1,10 +1,15 @@
-import { useState, useCallback, useEffect, useReducer } from 'react'
+import React, { useState, useCallback, useEffect, useReducer } from 'react'
 import Sidebar from './components/Sidebar'
-import CodeModal from './components/CodeModal'
-import MonacoEditor from './components/MonacoEditor'
 import Canvas from './canvas/Canvas'
-
+import CodeModal from './components/CodeModal'
+import { MantineProvider, createTheme } from '@mantine/core'
+import '@mantine/core/styles.css'
 import './App.css'
+
+const theme = createTheme({
+    primaryColor: 'indigo',
+    fontFamily: 'Inter, sans-serif',
+})
 
 const initialState = {
     blocks: [],
@@ -15,59 +20,72 @@ const initialState = {
 function reducer(state, action) {
     switch (action.type) {
         case 'PUSH_BLOCKS': {
-            const nextBlocks = typeof action.payload === 'function' 
-                ? action.payload(state.blocks) 
-                : action.payload;
-            
-            if (!Array.isArray(nextBlocks)) {
-                console.error('❌ Error: Attempted to push non-array to blocks', nextBlocks);
+            try {
+                const nextBlocks = typeof action.payload === 'function' 
+                    ? action.payload(state.blocks) 
+                    : action.payload;
+
+                // Валидация данных
+                if (!Array.isArray(nextBlocks)) {
+                    console.error("❌ Reducer error: Payload is not an array", nextBlocks);
+                    return state;
+                }
+
+                const newHistory = state.history.slice(0, state.index + 1);
+                newHistory.push(nextBlocks);
+                
+                // Ограничиваем историю 50 шагами
+                if (newHistory.length > 50) newHistory.shift();
+
+                return {
+                    ...state,
+                    blocks: nextBlocks,
+                    history: newHistory,
+                    index: newHistory.length - 1
+                };
+            } catch (err) {
+                console.error("❌ Reducer crash prevented:", err);
                 return state;
             }
-
-            const newHistory = state.history.slice(0, state.index + 1);
-            newHistory.push(nextBlocks);
-            
-            return {
-                blocks: nextBlocks,
-                history: newHistory,
-                index: newHistory.length - 1
-            };
         }
         case 'UNDO': {
-            if (state.index <= 0) return state;
-            const newIndex = state.index - 1;
-            return {
-                ...state,
-                blocks: state.history[newIndex],
-                index: newIndex
-            };
+            if (state.index > 0) {
+                const nextIndex = state.index - 1;
+                return {
+                    ...state,
+                    blocks: state.history[nextIndex],
+                    index: nextIndex
+                };
+            }
+            return state;
         }
         case 'REDO': {
-            if (state.index >= state.history.length - 1) return state;
-            const newIndex = state.index + 1;
-            return {
-                ...state,
-                blocks: state.history[newIndex],
-                index: newIndex
-            };
-        }
-        default:
+            if (state.index < state.history.length - 1) {
+                const nextIndex = state.index + 1;
+                return {
+                    ...state,
+                    blocks: state.history[nextIndex],
+                    index: nextIndex
+                };
+            }
             return state;
+        }
+        case 'RESET': return initialState;
+        default: return state;
     }
 }
 
-export default function App() {
+function App() {
     const [state, dispatch] = useReducer(reducer, initialState);
-    const [selectedId, setSelectedId] = useState(null)
-    const [showCode, setShowCode] = useState(false)
+    const [selectedId, setSelectedId] = useState(null);
+    const [showCode, setShowCode] = useState(false);
 
-    const pushToHistory = useCallback((payload) => dispatch({ type: 'PUSH_BLOCKS', payload }), []);
-    const undo = useCallback(() => dispatch({ type: 'UNDO' }), []);
-    const redo = useCallback(() => dispatch({ type: 'REDO' }), []);
+    const pushToHistory = useCallback((newBlocks) => {
+        dispatch({ type: 'PUSH_BLOCKS', payload: newBlocks });
+    }, []);
 
     const addBlock = useCallback((parentId = null) => {
         const actualParentId = parentId || selectedId;
-        // Более надежный ID
         const id = 'block_' + Math.random().toString(36).substr(2, 9);
         
         const newB = {
@@ -90,85 +108,71 @@ export default function App() {
         setSelectedId(id);
     }, [selectedId, state.blocks, pushToHistory]);
 
-    const deleteBlock = useCallback(() => {
-        if (!selectedId) return;
-        const toDelete = new Set([selectedId]);
-        let size;
-        do {
-            size = toDelete.size;
-            state.blocks.forEach(b => {
-                if (b && b.parentId && toDelete.has(b.parentId)) {
-                    toDelete.add(b.id);
-                }
-            });
-        } while (toDelete.size > size);
-        
-        pushToHistory(state.blocks.filter(b => b && !toDelete.has(b.id)));
-        setSelectedId(null);
-    }, [selectedId, state.blocks, pushToHistory]);
-
+    // Удаление через Delete
     useEffect(() => {
         const handleKeys = (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-                e.preventDefault()
-                if (e.shiftKey) redo()
-                else undo()
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+                // Если мы в инпуте - не удаляем
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
+                const deleteRecursive = (id, currentBlocks) => {
+                    let res = currentBlocks.filter(b => b.id !== id);
+                    const children = currentBlocks.filter(b => b.parentId === id);
+                    children.forEach(child => {
+                        res = deleteRecursive(child.id, res);
+                    });
+                    return res;
+                };
+                
+                pushToHistory(prev => deleteRecursive(selectedId, prev));
+                setSelectedId(null);
             }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && !e.target.isContentEditable) {
+            // Undo/Redo
+            if (e.metaKey || e.ctrlKey) {
+                if (e.key === 'z') {
                     e.preventDefault();
-                    deleteBlock();
+                    if (e.shiftKey) dispatch({ type: 'REDO' });
+                    else dispatch({ type: 'UNDO' });
                 }
             }
         }
-        window.addEventListener('keydown', handleKeys)
-        return () => window.removeEventListener('keydown', handleKeys)
-    }, [undo, redo, deleteBlock])
+        window.addEventListener('keydown', handleKeys);
+        return () => window.removeEventListener('keydown', handleKeys);
+    }, [selectedId, pushToHistory]);
 
-    // Максимально безопасный поиск активного блока
-    let activeBlock = null;
-    try {
-        if (selectedId && Array.isArray(state.blocks)) {
-            activeBlock = state.blocks.find(b => b && b.id === selectedId) || null;
-        }
-    } catch (err) {
-        console.error('❌ Critical error during block search:', err);
-    }
+    const activeBlock = Array.isArray(state.blocks) 
+        ? state.blocks.find(b => b && b.id === selectedId) 
+        : null;
 
     return (
-        <div className="architect-app">
-            <Sidebar
-                activeShape={activeBlock ? { id: activeBlock.id, meta: activeBlock.meta || {} } : null}
-                shapes={state.blocks || []}
-                onShowCode={() => setShowCode(true)}
-                onExport={() => {}}
-                onSelect={(id) => setSelectedId(id)}
-                onAddBlock={addBlock}
-                onMetaUpdate={(metaUpdate) => {
-                    if (!selectedId) return;
-                    const next = state.blocks.map(b => 
-                        b.id === selectedId ? { ...b, meta: { ...(b.meta || {}), ...metaUpdate } } : b
-                    );
-                    pushToHistory(next);
-                }}
-                onCSSUpdate={() => {}}
-                MonacoComponent={MonacoEditor}
-            />
-
-            <main className="canvas-wrapper">
-                <Canvas
-                    blocks={state.blocks || []}
+        <MantineProvider theme={theme} defaultColorScheme="dark">
+            <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: '#0a0a0c' }}>
+                <Sidebar 
+                    activeShape={activeBlock}
+                    shapes={state.blocks}
+                    onSelect={setSelectedId}
+                    onAddBlock={addBlock}
+                    onShowCode={() => setShowCode(true)}
+                    onMetaUpdate={(updates, id) => {
+                        pushToHistory(prev => prev.map(b => b.id === id ? { ...b, meta: { ...b.meta, ...updates } } : b));
+                    }}
+                />
+                
+                <Canvas 
+                    blocks={state.blocks}
                     setBlocks={pushToHistory}
                     selectedId={selectedId}
-                    onSelect={(id) => setSelectedId(id)}
+                    onSelect={setSelectedId}
                 />
-            </main>
 
-            <CodeModal
-                opened={showCode}
-                onClose={() => setShowCode(false)}
-                blocks={state.blocks || []}
-            />
-        </div>
+                <CodeModal 
+                    opened={showCode} 
+                    onClose={() => setShowCode(false)} 
+                    blocks={state.blocks} 
+                />
+            </div>
+        </MantineProvider>
     )
 }
+
+export default App
