@@ -94,6 +94,7 @@ const Block = ({
                     <FloatingToolbar 
                         block={block} zoom={zoom} 
                         hasChildren={children.length > 0}
+                        hasContent={children.length > 0 || !!block.meta?.text}
                         onUpdateMeta={(key, val) => onUpdateMeta(block.id, key, val)} 
                         onUpdateSize={(key, val) => onUpdateSize(block.id, key, val)}
                         onAddBlock={onAddBlock}
@@ -111,8 +112,22 @@ const Block = ({
                 </>
             )}
 
-            {block.meta?.text && (
-                <div style={{ color: 'white', fontWeight: 700, pointerEvents: 'none', userSelect: 'none', textAlign: 'center', width: '100%', fontSize: 14 }}>
+            {block.meta?.text !== undefined && (
+                <div 
+                    contentEditable={isSelected}
+                    suppressContentEditableWarning
+                    onBlur={(e) => onUpdateMeta(block.id, 'text', e.target.innerText)}
+                    onMouseDown={(e) => isSelected && e.stopPropagation()}
+                    style={{ 
+                        color: 'white', 
+                        fontWeight: 700, 
+                        pointerEvents: isSelected ? 'auto' : 'none', 
+                        userSelect: isSelected ? 'text' : 'none', 
+                        textAlign: 'center', 
+                        fontSize: 14,
+                        outline: 'none'
+                    }}
+                >
                     {block.meta.text}
                 </div>
             )}

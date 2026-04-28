@@ -33,9 +33,15 @@ const blocksToTree = (items) => {
 export const generateHTML = (nodes, indent = "") => {
     return nodes.map(n => {
         const name = `box-${n.id}`;
-        const tag = 'div';
-        const children = n.children?.length ? `\n${generateHTML(n.children, indent + "  ")}${indent}` : "";
-        return `${indent}<${tag} class="${name}">${children}</${tag}>`;
+        const tag = n.meta?.tag || 'div';
+        const text = n.meta?.text || '';
+        
+        let children = n.children?.length ? `\n${generateHTML(n.children, indent + "  ")}${indent}` : "";
+        
+        // Если есть текст, добавляем его перед детьми
+        const content = text ? (children ? `\n${indent}  ${text}${children}` : text) : children;
+        
+        return `${indent}<${tag} class="${name}">${content}</${tag}>`;
     }).join("\n");
 };
 
