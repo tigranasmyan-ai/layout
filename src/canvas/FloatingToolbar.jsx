@@ -10,22 +10,12 @@ import {
   IconLayoutAlignBottom,
   IconLayoutDistributeHorizontal,
   IconPlus,
-  IconCode,
-  IconColumns,
-  IconColumns1,
-  IconColumns2,
-  IconColumns3,
-  IconNumber2,
-  IconNumber3,
-  IconNumber4,
-  IconNumber5,
   IconFold
 } from '@tabler/icons-react';
 
-export default function FloatingToolbar({ block, zoom, hasChildren, onUpdateMeta, onUpdateSize, onAddBlock, onToggleCss, onApplyPreset }) {
+export default function FloatingToolbar({ block, zoom, hasChildren, onUpdateMeta, onUpdateSize, onAddBlock, onToggleCss }) {
     const invZoom = 1 / zoom;
     const { direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap' } = block.meta || {};
-    const [showPresets, setShowPresets] = useState(false);
     const [showMultiAdd, setShowMultiAdd] = useState(false);
 
     return (
@@ -44,7 +34,7 @@ export default function FloatingToolbar({ block, zoom, hasChildren, onUpdateMeta
             alignItems: 'center',
             border: '1px solid rgba(255,255,255,0.15)',
             boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
-            zIndex: 3000,
+            zIndex: 9999,
             pointerEvents: 'auto'
         }} onMouseDown={e => e.stopPropagation()}>
             
@@ -79,33 +69,6 @@ export default function FloatingToolbar({ block, zoom, hasChildren, onUpdateMeta
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '0 4px' }}>
                 <SizeInput label="W" value={block.w} onChange={(val) => onUpdateSize('w', val)} />
                 <SizeInput label="H" value={block.h} onChange={(val) => onUpdateSize('h', val)} />
-            </div>
-
-            <Divider />
-
-            {/* PRESETS MENU */}
-            <div style={{ position: 'relative' }}>
-                <ToolbarButton onClick={() => setShowPresets(!showPresets)} active={showPresets} highlight="#8b5cf6" title="Layout Presets">
-                    <IconColumns size={16} />
-                </ToolbarButton>
-                
-                {showPresets && (
-                    <div style={{
-                        position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
-                        background: '#1a1a1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8,
-                        padding: 4, display: 'flex', gap: 4, boxShadow: '0 10px 20px rgba(0,0,0,0.4)', zIndex: 3001
-                    }}>
-                        <ToolbarButton onClick={() => { onApplyPreset('even'); setShowPresets(false); }} title="Even (50/50, 33/33...)">
-                            <IconColumns2 size={16} />
-                        </ToolbarButton>
-                        <ToolbarButton onClick={() => { onApplyPreset('sidebar'); setShowPresets(false); }} title="Sidebar Layout">
-                            <IconColumns3 size={16} />
-                        </ToolbarButton>
-                        <ToolbarButton onClick={() => { onApplyPreset('reset'); setShowPresets(false); }} title="Reset to Auto">
-                            <IconColumns1 size={16} />
-                        </ToolbarButton>
-                    </div>
-                )}
             </div>
 
             <Divider />

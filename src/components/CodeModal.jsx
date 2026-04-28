@@ -44,16 +44,34 @@ export const generateCSS = (nodes) => {
     const traverse = (items) => {
         items.forEach(n => {
             const m = n.meta || {};
+            const p = m.padding || { top: 0, right: 0, bottom: 0, left: 0 };
+            const mar = m.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+
             out += `.box-${n.id} {\n`;
             out += `  display: flex;\n`;
             out += `  flex-direction: ${m.direction || 'row'};\n`;
             out += `  justify-content: ${m.justify || 'flex-start'};\n`;
             out += `  align-items: ${m.align || 'flex-start'};\n`;
+            out += `  flex-wrap: ${m.wrap || 'nowrap'};\n`;
             out += `  gap: ${m.gap || 0}px;\n`;
-            out += `  padding: ${m.padding || 0}px;\n`;
+
+            // Свойства гибкости
+            if (m.flexGrow !== undefined) out += `  flex-grow: ${m.flexGrow};\n`;
+            if (m.flexBasis !== undefined) out += `  flex-basis: ${m.flexBasis};\n`;
+            if (m.alignSelf && m.alignSelf !== 'auto') out += `  align-self: ${m.alignSelf};\n`;
+
+            // Размеры
+            const w = m.w || n.w;
+            const h = m.h || n.h;
+            if (w !== undefined) out += `  width: ${typeof w === 'number' ? w + 'px' : w};\n`;
+            if (h !== undefined) out += `  height: ${typeof h === 'number' ? h + 'px' : h};\n`;
+
+            // Отступы (Shorthand: top right bottom left)
+            out += `  padding: ${p.top}px ${p.right}px ${p.bottom}px ${p.left}px;\n`;
+            out += `  margin: ${mar.top}px ${mar.right}px ${mar.bottom}px ${mar.left}px;\n`;
             
-            // Пользовательский CSS если есть
-            if (n.css) out += `  ${n.css}\n`;
+            // Пользовательский CSS
+            if (m.customCss) out += `  ${m.customCss}\n`;
             
             out += `}\n\n`;
             

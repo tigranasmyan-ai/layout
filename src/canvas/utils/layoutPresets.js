@@ -43,24 +43,3 @@ export const applyLayoutPreset = (prevBlocks, blockId, preset) => {
     });
 };
 
-export const toggleEdgeFill = (blocks, block, axis) => {
-    if (!block.parentId) return block.meta || {};
-    const parent = blocks.find(b => b.id === block.parentId);
-    const direction = parent?.meta?.direction || 'row';
-    const isMainAxis = (axis === 'w' && direction === 'row') || (axis === 'h' && direction === 'column');
-    
-    let newMeta = { ...block.meta };
-    let newSizeUpdate = null;
-
-    if (isMainAxis) {
-        const currentGrow = block.meta?.flexGrow || 0;
-        const newGrow = currentGrow === 1 ? 0 : 1;
-        newMeta.flexGrow = newGrow;
-        if (newGrow === 1) newSizeUpdate = 0;
-    } else {
-        const currentAlign = block.meta?.alignSelf || 'auto';
-        newMeta.alignSelf = currentAlign === 'stretch' ? 'auto' : 'stretch';
-    }
-
-    return { newMeta, newSizeUpdate };
-};
