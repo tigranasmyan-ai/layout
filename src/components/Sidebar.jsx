@@ -11,7 +11,9 @@ import {
     FileInput,
     TextInput,
     SegmentedControl,
-    Divider
+    Divider,
+    NumberInput,
+    Select
 } from '@mantine/core'
 import { 
     IconBox, 
@@ -21,7 +23,11 @@ import {
     IconLayout2,
     IconBracketsContain,
     IconPhoto,
-    IconTrash
+    IconTrash,
+    IconTypography,
+    IconAlignLeft,
+    IconAlignCenter,
+    IconAlignRight
 } from '@tabler/icons-react'
 import Editor from '@monaco-editor/react'
 
@@ -166,32 +172,97 @@ export default function Sidebar({
             </Box>
 
             {activeShape && (
-                <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
-                    <Group gap={6} mb="xs">
-                        <Text size="xs" fw={700} c="dimmed">CONTENT & TAGS</Text>
-                    </Group>
-                    
-                    <Stack gap="xs">
-                        <SegmentedControl 
-                            size="xs"
-                            fullWidth
-                            value={activeShape.meta?.tag || 'div'}
-                            onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
-                            data={[
-                                { label: 'H1', value: 'h1' },
-                                { label: 'H2', value: 'h2' },
-                                { label: 'P', value: 'p' },
-                                { label: 'DIV', value: 'div' },
-                            ]}
-                        />
-                        <TextInput 
-                            placeholder="Enter text..."
-                            size="xs"
-                            value={activeShape.meta?.text || ''}
-                            onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
-                        />
-                    </Stack>
-                </Box>
+                (() => {
+                    const hasChildren = shapes.some(s => s.parentId === activeShape.id);
+                    if (hasChildren) return null;
+
+                    return (
+                        <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
+                            <Group gap={6} mb="xs">
+                                <IconTypography size={14} color="#818cf8" />
+                                <Text size="xs" fw={700} c="dimmed">CONTENT & TYPOGRAPHY</Text>
+                            </Group>
+                            
+                            <Stack gap="xs">
+                                <Select 
+                                    label={<Text size="xs" c="dimmed">Semantic Tag</Text>}
+                                    size="xs"
+                                    value={activeShape.meta?.tag || 'div'}
+                                    onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
+                                    data={[
+                                        { label: 'H1 - Main Heading', value: 'h1' },
+                                        { label: 'H2 - Sub Heading', value: 'h2' },
+                                        { label: 'H3 - Section Title', value: 'h3' },
+                                        { label: 'H4 - Small Title', value: 'h4' },
+                                        { label: 'H5 - Tiny Title', value: 'h5' },
+                                        { label: 'H6 - Smallest Title', value: 'h6' },
+                                        { label: 'P - Paragraph', value: 'p' },
+                                    ]}
+                                />
+                                <TextInput 
+                                    label={<Text size="xs" c="dimmed">Block Text Content</Text>}
+                                    placeholder="Select tag first..."
+                                    size="xs"
+                                    disabled={!activeShape.meta?.tag}
+                                    value={activeShape.meta?.text || ''}
+                                    onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                                />
+                                
+                                <Group grow gap="xs">
+                                    <NumberInput 
+                                        label={<Text size="xs" c="dimmed">Size</Text>}
+                                        size="xs"
+                                        disabled={!activeShape.meta?.tag}
+                                        value={activeShape.meta?.fontSize || 16}
+                                        onChange={(val) => onUpdateMeta(activeShape.id, 'fontSize', val)}
+                                    />
+                                    <Select 
+                                        label={<Text size="xs" c="dimmed">Weight</Text>}
+                                        size="xs"
+                                        disabled={!activeShape.meta?.tag}
+                                        value={String(activeShape.meta?.fontWeight || 400)}
+                                        onChange={(val) => onUpdateMeta(activeShape.id, 'fontWeight', parseInt(val))}
+                                        data={[
+                                            { label: '100 - Thin', value: '100' },
+                                            { label: '200 - Extra Light', value: '200' },
+                                            { label: '300 - Light', value: '300' },
+                                            { label: '400 - Regular', value: '400' },
+                                            { label: '500 - Medium', value: '500' },
+                                            { label: '600 - Semi Bold', value: '600' },
+                                            { label: '700 - Bold', value: '700' },
+                                            { label: '800 - Extra Bold', value: '800' },
+                                            { label: '900 - Black', value: '900' },
+                                        ]}
+                                    />
+                                </Group>
+
+                                <Box>
+                                    <Text size="xs" c="dimmed" mb={4}>Text Align (Applies to parent)</Text>
+                                    {(() => {
+                                        const parent = shapes.find(s => s.id === activeShape.parentId);
+                                        const targetId = parent ? parent.id : activeShape.id;
+                                        const currentAlign = parent ? (parent.meta?.textAlign || 'left') : (activeShape.meta?.textAlign || 'left');
+
+                                        return (
+                                            <SegmentedControl 
+                                                size="xs"
+                                                fullWidth
+                                                disabled={!activeShape.meta?.tag}
+                                                value={currentAlign}
+                                                onChange={(val) => onUpdateMeta(targetId, 'textAlign', val)}
+                                                data={[
+                                                    { label: <IconAlignLeft size={14} />, value: 'left' },
+                                                    { label: <IconAlignCenter size={14} />, value: 'center' },
+                                                    { label: <IconAlignRight size={14} />, value: 'right' },
+                                                ]}
+                                            />
+                                        );
+                                    })()}
+                                </Box>
+                            </Stack>
+                        </Box>
+                    );
+                })()
             )}
 
             {activeShape && (

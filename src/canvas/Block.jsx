@@ -43,15 +43,18 @@ const Block = ({
 
     const width = block.meta?.w || block.w;
     const height = block.meta?.h || block.h;
+    const Tag = block.meta?.tag || 'div';
+    const isTextTag = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p'].includes(Tag);
 
     return (
-        <div 
+        <Tag 
             key={block.id} 
             data-id={block.id} 
             className={`flex-block target ${isSelected ? 'selected' : ''}`}
             onMouseDown={(e) => {
                 if (isPanning) return;
-                e.stopPropagation();
+                e.stopPropagation(); 
+                
                 if (e.shiftKey) {
                     const currentIds = selectedIds;
                     if (currentIds.includes(block.id)) onSelect(currentIds.filter(id => id !== block.id).join(',') || null);
@@ -79,18 +82,23 @@ const Block = ({
                 marginRight: m.right === 'auto' ? 'auto' : (parseInt(m.right) || 0), 
                 marginBottom: m.bottom === 'auto' ? 'auto' : (parseInt(m.bottom) || 0), 
                 marginLeft: m.left === 'auto' ? 'auto' : (parseInt(m.left) || 0),
-                background: 'rgba(255, 255, 255, 0.03)', 
-                border: isSelected ? `2px solid ${COLORS.selected}` : `1px solid ${COLORS.border}`,
+                background: isTextTag ? 'transparent' : 'rgba(255, 255, 255, 0.03)', 
+                border: isSelected ? `2px solid ${COLORS.selected}` : (isTextTag ? '1px dashed rgba(255,255,255,0.1)' : `1px solid ${COLORS.border}`),
                 boxSizing: 'border-box',
                 zIndex: isRoot ? (isSelected ? 100 : 10) : 'auto',
                 borderRadius: 4, 
                 cursor: isPanning ? 'grab' : 'pointer',
+                color: isTextTag ? 'white' : 'inherit',
+                fontSize: isTextTag ? (block.meta?.fontSize || 16) : 'inherit',
+                fontWeight: isTextTag ? (block.meta?.fontWeight || 400) : 'inherit',
+                textAlign: block.meta?.textAlign || 'inherit',
+                outline: 'none',
                 ...flexStyles,
                 ...customStyles
             }}
         >
             {isSelected && selectedIds.length === 1 && (
-                <>
+                <div contentEditable={false} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 0, pointerEvents: 'none' }}>
                     <FloatingToolbar 
                         block={block} zoom={zoom} 
                         hasChildren={children.length > 0}
@@ -109,30 +117,10 @@ const Block = ({
                             onFill={(side) => onFill(block.id, side)}
                         />
                     </div>
-                </>
-            )}
-
-            {block.meta?.text !== undefined && (
-                <div 
-                    contentEditable={isSelected}
-                    suppressContentEditableWarning
-                    onBlur={(e) => onUpdateMeta(block.id, 'text', e.target.innerText)}
-                    onMouseDown={(e) => isSelected && e.stopPropagation()}
-                    style={{ 
-                        color: 'white', 
-                        fontWeight: 700, 
-                        pointerEvents: isSelected ? 'auto' : 'none', 
-                        userSelect: isSelected ? 'text' : 'none', 
-                        textAlign: 'center', 
-                        fontSize: 14,
-                        outline: 'none'
-                    }}
-                >
-                    {block.meta.text}
                 </div>
             )}
 
-            {children.map(child => (
+            {isTextTag ? block.meta?.text : children.map(child => (
                 <Block 
                     key={child.id}
                     block={child}
@@ -151,7 +139,7 @@ const Block = ({
                     zoom={zoom}
                 />
             ))}
-        </div>
+        </Tag>
     );
 };
 

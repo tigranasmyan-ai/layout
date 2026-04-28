@@ -10,15 +10,24 @@ import {
   IconLayoutAlignBottom,
   IconLayoutDistributeHorizontal,
   IconPlus,
-  IconFold
+  IconFold,
+  IconAlignLeft,
+  IconAlignCenter,
+  IconAlignRight,
+  IconBold
 } from '@tabler/icons-react';
 
 const Divider = () => <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />;
 
 export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, onUpdateMeta, onUpdateSize, onAddBlock, onToggleCss }) {
     const invZoom = 1 / zoom;
-    const { direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap' } = block.meta || {};
+    const { 
+        direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap',
+        tag = '', fontSize = 16, fontWeight = 400, textAlign = 'left' 
+    } = block.meta || {};
+    const isTextTag = ['h1', 'h2', 'p'].includes(tag);
     const [showMultiAdd, setShowMultiAdd] = useState(false);
+    const [showTextSettings, setShowTextSettings] = useState(false);
 
     return (
         <div style={{
@@ -103,23 +112,6 @@ export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, 
                 </>
             )}
 
-            {/* TAG SELECTOR (For leaf blocks) */}
-            {!hasChildren && (
-                <>
-                    <Divider />
-                    <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: 2, gap: 2 }}>
-                        <ToolbarButton active={block.meta?.tag === 'h1'} onClick={() => onUpdateMeta('tag', 'h1')} title="H1">
-                            <span style={{ fontSize: 10, fontWeight: 900 }}>H1</span>
-                        </ToolbarButton>
-                        <ToolbarButton active={block.meta?.tag === 'h2'} onClick={() => onUpdateMeta('tag', 'h2')} title="H2">
-                            <span style={{ fontSize: 10, fontWeight: 900 }}>H2</span>
-                        </ToolbarButton>
-                        <ToolbarButton active={block.meta?.tag === 'p'} onClick={() => onUpdateMeta('tag', 'p')} title="P">
-                            <span style={{ fontSize: 10, fontWeight: 900 }}>P</span>
-                        </ToolbarButton>
-                    </div>
-                </>
-            )}
         </div>
     );
 }
