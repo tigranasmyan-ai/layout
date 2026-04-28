@@ -8,7 +8,10 @@ import {
     Stack,
     Slider,
     Button,
-    FileInput
+    FileInput,
+    TextInput,
+    SegmentedControl,
+    Divider
 } from '@mantine/core'
 import { 
     IconBox, 
@@ -161,6 +164,35 @@ export default function Sidebar({
                     {renderTree()}
                 </ScrollArea>
             </Box>
+
+            {activeShape && (
+                <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
+                    <Group gap={6} mb="xs">
+                        <Text size="xs" fw={700} c="dimmed">CONTENT & TAGS</Text>
+                    </Group>
+                    
+                    <Stack gap="xs">
+                        <SegmentedControl 
+                            size="xs"
+                            fullWidth
+                            value={activeShape.meta?.tag || 'div'}
+                            onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
+                            data={[
+                                { label: 'H1', value: 'h1' },
+                                { label: 'H2', value: 'h2' },
+                                { label: 'P', value: 'p' },
+                                { label: 'DIV', value: 'div' },
+                            ]}
+                        />
+                        <TextInput 
+                            placeholder="Enter text..."
+                            size="xs"
+                            value={activeShape.meta?.text || ''}
+                            onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                        />
+                    </Stack>
+                </Box>
+            )}
 
             {activeShape && (
                 <Box style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: '#141417' }}>

@@ -144,7 +144,6 @@ export default function Canvas({ blocks, setBlocks, selectedId, onSelect, onAddB
                             onFill={handleFill}
                         />
                     ))}
-                    ))}
                     
                     <Moveable 
                         ref={moveableRef} target={targets} zoom={1 / zoom} 

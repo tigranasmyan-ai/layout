@@ -11,7 +11,9 @@ export const DEFAULT_BLOCK_META = {
     flexGrow: 0,
     flexShrink: 0,
     maxWidth: 'none',
-    maxHeight: 'none'
+    maxHeight: 'none',
+    tag: 'div',
+    text: ''
 };
 
 export const COLORS = {

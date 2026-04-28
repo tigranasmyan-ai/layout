@@ -13,6 +13,8 @@ import {
   IconFold
 } from '@tabler/icons-react';
 
+const Divider = () => <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />;
+
 export default function FloatingToolbar({ block, zoom, hasChildren, onUpdateMeta, onUpdateSize, onAddBlock, onToggleCss }) {
     const invZoom = 1 / zoom;
     const { direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap' } = block.meta || {};
@@ -101,6 +103,22 @@ export default function FloatingToolbar({ block, zoom, hasChildren, onUpdateMeta
                     </div>
                 </>
             )}
+
+            <Divider />
+            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: 2, gap: 2 }}>
+                <ToolbarButton active={block.meta?.tag === 'h1'} onClick={() => onUpdateMeta('tag', 'h1')} title="H1">
+                    <span style={{ fontSize: 10, fontWeight: 900 }}>H1</span>
+                </ToolbarButton>
+                <ToolbarButton active={block.meta?.tag === 'h2'} onClick={() => onUpdateMeta('tag', 'h2')} title="H2">
+                    <span style={{ fontSize: 10, fontWeight: 900 }}>H2</span>
+                </ToolbarButton>
+                <ToolbarButton active={block.meta?.tag === 'p'} onClick={() => onUpdateMeta('tag', 'p')} title="P">
+                    <span style={{ fontSize: 10, fontWeight: 900 }}>P</span>
+                </ToolbarButton>
+                <ToolbarButton active={!block.meta?.tag || block.meta?.tag === 'div'} onClick={() => onUpdateMeta('tag', 'div')} title="DIV">
+                    <span style={{ fontSize: 8, fontWeight: 900, opacity: 0.6 }}>DIV</span>
+                </ToolbarButton>
+            </div>
         </div>
     );
 }
@@ -134,4 +152,4 @@ function ToolbarButton({ children, active, onClick, highlight = '#4f46e5', title
     );
 }
 
-const Divider = () => <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />;
+

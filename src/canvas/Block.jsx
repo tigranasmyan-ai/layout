@@ -110,6 +110,13 @@ const Block = ({
                     </div>
                 </>
             )}
+
+            {block.meta?.text && (
+                <div style={{ color: 'white', fontWeight: 700, pointerEvents: 'none', userSelect: 'none', textAlign: 'center', width: '100%', fontSize: 14 }}>
+                    {block.meta.text}
+                </div>
+            )}
+
             {children.map(child => (
                 <Block 
                     key={child.id}

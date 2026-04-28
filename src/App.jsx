@@ -49,7 +49,7 @@ function App() {
     }, [selectedId, state.blocks, pushToHistory]);
 
     const updateBlockMeta = useCallback((id, key, value) => {
-        const newBlocks = state.blocks.map(b => b && b.id === id ? { ...b, meta: { ...b.meta, [key]: value } } : b);
+        const newBlocks = state.blocks.map(b => b && b.id === id ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b);
         pushToHistory(newBlocks);
     }, [state.blocks, pushToHistory]);
 
