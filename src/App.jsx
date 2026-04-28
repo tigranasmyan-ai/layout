@@ -30,21 +30,22 @@ function App() {
         dispatch({ type: 'UPDATE_BLUEPRINT', payload });
     }, []);
 
-    const addBlock = useCallback((parentId = null) => {
+    const addBlock = useCallback((parentId = null, count = 1) => {
         const actualParentId = parentId || selectedId;
-        const id = 'block_' + Math.random().toString(36).substr(2, 9);
-        
-        const newB = {
-            id,
-            parentId: actualParentId,
-            x: actualParentId ? 0 : 100 + (state.blocks.length * 20),
-            y: actualParentId ? 0 : 100 + (state.blocks.length * 20),
-            w: actualParentId ? 100 : 200,
-            h: actualParentId ? 100 : 200,
-            meta: { ...DEFAULT_BLOCK_META }
+        const newBlocks = [];
+        for (let i = 0; i < count; i++) {
+            newBlocks.push({
+                id: 'block_' + Math.random().toString(36).substr(2, 9),
+                parentId: actualParentId,
+                x: actualParentId ? 0 : 100 + ((state.blocks.length + i) * 20),
+                y: actualParentId ? 0 : 100 + ((state.blocks.length + i) * 20),
+                w: actualParentId ? 100 : 200,
+                h: actualParentId ? 100 : 200,
+                meta: { ...DEFAULT_BLOCK_META }
+            });
         }
-        pushToHistory([...state.blocks, newB]);
-        setSelectedId(id);
+        pushToHistory([...state.blocks, ...newBlocks]);
+        setSelectedId(newBlocks[newBlocks.length - 1].id);
     }, [selectedId, state.blocks, pushToHistory]);
 
     const updateBlockMeta = useCallback((id, key, value) => {
