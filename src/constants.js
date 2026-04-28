@@ -16,7 +16,10 @@ export const DEFAULT_BLOCK_META = {
     text: '',
     fontSize: 16,
     fontWeight: 400,
-    textAlign: 'left'
+    textAlign: 'left',
+    bgImage: '',
+    bgSize: 'cover',
+    bgPosition: 'center'
 };
 
 export const COLORS = {

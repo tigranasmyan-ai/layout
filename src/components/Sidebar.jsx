@@ -43,6 +43,15 @@ export default function Sidebar({
     onUpdateBlueprint
 }) {
     const editorRef = useRef(null);
+    const [openSections, setOpenSections] = React.useState({
+        background: true,
+        content: true,
+        css: false
+    });
+
+    const toggleSection = (section) => {
+        setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
 
     const handleEditorChange = (value) => {
         if (!activeShape) return;
@@ -64,7 +73,7 @@ export default function Sidebar({
             img.onload = () => {
                 onUpdateBlueprint({ 
                     url: e.target.result,
-                    w: img.naturalWidth // Устанавливаем реальную ширину макета
+                    w: img.naturalWidth 
                 });
             };
             img.src = e.target.result;
@@ -172,126 +181,160 @@ export default function Sidebar({
             </Box>
 
             {activeShape && (
-                (() => {
-                    const hasChildren = shapes.some(s => s.parentId === activeShape.id);
-                    if (hasChildren) return null;
-
-                    return (
-                        <Box p="md" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
-                            <Group gap={6} mb="xs">
-                                <IconTypography size={14} color="#818cf8" />
-                                <Text size="xs" fw={700} c="dimmed">CONTENT & TYPOGRAPHY</Text>
+                <ScrollArea offsetScrollbars p="0" style={{ maxHeight: '60vh', borderTop: '1px solid rgba(255,255,255,0.1)', background: '#141417' }}>
+                    {/* BACKGROUND SECTION */}
+                    <Box style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <Group 
+                            p="xs" px="md" justify="space-between" 
+                            onClick={() => toggleSection('background')}
+                            style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}
+                        >
+                            <Group gap={6}>
+                                <IconPhoto size={14} color="#ec4899" />
+                                <Text size="xs" fw={700} c="dimmed">BACKGROUND</Text>
                             </Group>
-                            
-                            <Stack gap="xs">
-                                <Select 
-                                    label={<Text size="xs" c="dimmed">Semantic Tag</Text>}
+                            <IconChevronDown size={14} style={{ transform: openSections.background ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                        </Group>
+                        
+                        {openSections.background && (
+                            <Stack gap="xs" p="md">
+                                <FileInput 
+                                    label={<Text size="xs" c="dimmed">Upload Background</Text>}
+                                    placeholder="Choose image..."
                                     size="xs"
-                                    value={activeShape.meta?.tag || 'div'}
-                                    onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
+                                    accept="image/*"
+                                    onChange={(file) => {
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => onUpdateMeta(activeShape.id, 'bgImage', reader.result);
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                                {activeShape.meta?.bgImage && (
+                                    <Button size="compact-xs" variant="subtle" color="red" onClick={() => onUpdateMeta(activeShape.id, 'bgImage', '')}>Remove Image</Button>
+                                )}
+                                <SegmentedControl 
+                                    size="xs" fullWidth
+                                    value={activeShape.meta?.bgSize || 'cover'}
+                                    onChange={(val) => onUpdateMeta(activeShape.id, 'bgSize', val)}
                                     data={[
-                                        { label: 'H1 - Main Heading', value: 'h1' },
-                                        { label: 'H2 - Sub Heading', value: 'h2' },
-                                        { label: 'H3 - Section Title', value: 'h3' },
-                                        { label: 'H4 - Small Title', value: 'h4' },
-                                        { label: 'H5 - Tiny Title', value: 'h5' },
-                                        { label: 'H6 - Smallest Title', value: 'h6' },
-                                        { label: 'P - Paragraph', value: 'p' },
+                                        { label: 'Cover', value: 'cover' },
+                                        { label: 'Contain', value: 'contain' },
+                                        { label: 'Auto', value: 'auto' },
                                     ]}
                                 />
-                                <TextInput 
-                                    label={<Text size="xs" c="dimmed">Block Text Content</Text>}
-                                    placeholder="Select tag first..."
-                                    size="xs"
-                                    disabled={!activeShape.meta?.tag}
-                                    value={activeShape.meta?.text || ''}
-                                    onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
-                                />
-                                
-                                <Group grow gap="xs">
-                                    <NumberInput 
-                                        label={<Text size="xs" c="dimmed">Size</Text>}
-                                        size="xs"
-                                        disabled={!activeShape.meta?.tag}
-                                        value={activeShape.meta?.fontSize || 16}
-                                        onChange={(val) => onUpdateMeta(activeShape.id, 'fontSize', val)}
-                                    />
-                                    <Select 
-                                        label={<Text size="xs" c="dimmed">Weight</Text>}
-                                        size="xs"
-                                        disabled={!activeShape.meta?.tag}
-                                        value={String(activeShape.meta?.fontWeight || 400)}
-                                        onChange={(val) => onUpdateMeta(activeShape.id, 'fontWeight', parseInt(val))}
-                                        data={[
-                                            { label: '100 - Thin', value: '100' },
-                                            { label: '200 - Extra Light', value: '200' },
-                                            { label: '300 - Light', value: '300' },
-                                            { label: '400 - Regular', value: '400' },
-                                            { label: '500 - Medium', value: '500' },
-                                            { label: '600 - Semi Bold', value: '600' },
-                                            { label: '700 - Bold', value: '700' },
-                                            { label: '800 - Extra Bold', value: '800' },
-                                            { label: '900 - Black', value: '900' },
-                                        ]}
-                                    />
+                            </Stack>
+                        )}
+                    </Box>
+
+                    {/* CONTENT & TYPOGRAPHY SECTION */}
+                    {(() => {
+                        const hasChildren = shapes.some(s => s && s.parentId === activeShape.id);
+                        if (hasChildren) return null;
+
+                        return (
+                            <Box style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <Group 
+                                    p="xs" px="md" justify="space-between" 
+                                    onClick={() => toggleSection('content')}
+                                    style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}
+                                >
+                                    <Group gap={6}>
+                                        <IconTypography size={14} color="#818cf8" />
+                                        <Text size="xs" fw={700} c="dimmed">CONTENT & TYPOGRAPHY</Text>
+                                    </Group>
+                                    <IconChevronDown size={14} style={{ transform: openSections.content ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                                 </Group>
 
-                                <Box>
-                                    <Text size="xs" c="dimmed" mb={4}>Text Align (Applies to parent)</Text>
-                                    {(() => {
-                                        const parent = shapes.find(s => s.id === activeShape.parentId);
-                                        const targetId = parent ? parent.id : activeShape.id;
-                                        const currentAlign = parent ? (parent.meta?.textAlign || 'left') : (activeShape.meta?.textAlign || 'left');
-
-                                        return (
-                                            <SegmentedControl 
-                                                size="xs"
-                                                fullWidth
-                                                disabled={!activeShape.meta?.tag}
-                                                value={currentAlign}
-                                                onChange={(val) => onUpdateMeta(targetId, 'textAlign', val)}
+                                {openSections.content && (
+                                    <Stack gap="xs" p="md">
+                                        <Select 
+                                            label={<Text size="xs" c="dimmed">Semantic Tag</Text>}
+                                            size="xs"
+                                            value={activeShape.meta?.tag || 'div'}
+                                            onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
+                                            data={[
+                                                { label: 'H1 - Main Heading', value: 'h1' },
+                                                { label: 'H2 - Sub Heading', value: 'h2' },
+                                                { label: 'H3 - Section Title', value: 'h3' },
+                                                { label: 'H4 - Small Title', value: 'h4' },
+                                                { label: 'H5 - Tiny Title', value: 'h5' },
+                                                { label: 'H6 - Smallest Title', value: 'h6' },
+                                                { label: 'P - Paragraph', value: 'p' },
+                                            ]}
+                                        />
+                                        <TextInput 
+                                            label={<Text size="xs" c="dimmed">Block Text Content</Text>}
+                                            placeholder="Select tag first..."
+                                            size="xs"
+                                            disabled={!activeShape.meta?.tag}
+                                            value={activeShape.meta?.text || ''}
+                                            onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                                        />
+                                        <Group grow gap="xs">
+                                            <NumberInput 
+                                                label={<Text size="xs" c="dimmed">Size</Text>}
+                                                size="xs" disabled={!activeShape.meta?.tag}
+                                                value={activeShape.meta?.fontSize || 16}
+                                                onChange={(val) => onUpdateMeta(activeShape.id, 'fontSize', val)}
+                                            />
+                                            <Select 
+                                                label={<Text size="xs" c="dimmed">Weight</Text>}
+                                                size="xs" disabled={!activeShape.meta?.tag}
+                                                value={String(activeShape.meta?.fontWeight || 400)}
+                                                onChange={(val) => onUpdateMeta(activeShape.id, 'fontWeight', parseInt(val))}
                                                 data={[
-                                                    { label: <IconAlignLeft size={14} />, value: 'left' },
-                                                    { label: <IconAlignCenter size={14} />, value: 'center' },
-                                                    { label: <IconAlignRight size={14} />, value: 'right' },
+                                                    { label: '100', value: '100' },
+                                                    { label: '400', value: '400' },
+                                                    { label: '700', value: '700' },
+                                                    { label: '900', value: '900' },
                                                 ]}
                                             />
-                                        );
-                                    })()}
-                                </Box>
-                            </Stack>
-                        </Box>
-                    );
-                })()
-            )}
+                                        </Group>
+                                    </Stack>
+                                )}
+                            </Box>
+                        );
+                    })()}
 
-            {activeShape && (
-                <Box style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: '#141417' }}>
-                    <Group p="xs" px="md" bg="rgba(0,0,0,0.2)">
-                        <IconBracketsContain size={14} color="#f59e0b" />
-                        <Text size="xs" fw={700} c="white">ADVANCED CSS</Text>
-                    </Group>
-                    
-                    <Box style={{ height: 250 }}>
-                        <Editor
-                            height="100%"
-                            defaultLanguage="css"
-                            theme="vs-dark"
-                            value={editorValue}
-                            onChange={handleEditorChange}
-                            onMount={(editor) => { editorRef.current = editor; }}
-                            options={{
-                                minimap: { enabled: false },
-                                fontSize: 12,
-                                lineNumbers: 'on',
-                                padding: { top: 10, bottom: 10 },
-                                scrollBeyondLastLine: false,
-                                wordWrap: 'on'
-                            }}
-                        />
+                    {/* ADVANCED CSS SECTION */}
+                    <Box>
+                        <Group 
+                            p="xs" px="md" justify="space-between" 
+                            onClick={() => toggleSection('css')}
+                            style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}
+                        >
+                            <Group gap={6}>
+                                <IconBracketsContain size={14} color="#f59e0b" />
+                                <Text size="xs" fw={700} c="dimmed">ADVANCED CSS</Text>
+                            </Group>
+                            <IconChevronDown size={14} style={{ transform: openSections.css ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                        </Group>
+
+                        {openSections.css && (
+                            <Box style={{ height: 250 }}>
+                                <Editor
+                                    height="100%"
+                                    defaultLanguage="css"
+                                    theme="vs-dark"
+                                    value={editorValue}
+                                    onChange={handleEditorChange}
+                                    onMount={(editor) => { editorRef.current = editor; }}
+                                    options={{
+                                        minimap: { enabled: false },
+                                        fontSize: 12,
+                                        lineNumbers: 'on',
+                                        padding: { top: 10, bottom: 10 },
+                                        scrollBeyondLastLine: false,
+                                        wordWrap: 'on'
+                                    }}
+                                />
+                            </Box>
+                        )}
                     </Box>
-                </Box>
+                </ScrollArea>
             )}
         </Box>
-    )
+    );
 }

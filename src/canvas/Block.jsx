@@ -92,6 +92,10 @@ const Block = ({
                 fontSize: isTextTag ? (block.meta?.fontSize || 16) : 'inherit',
                 fontWeight: isTextTag ? (block.meta?.fontWeight || 400) : 'inherit',
                 textAlign: block.meta?.textAlign || 'inherit',
+                backgroundImage: block.meta?.bgImage ? `url(${block.meta.bgImage})` : 'none',
+                backgroundSize: block.meta?.bgSize || 'cover',
+                backgroundPosition: block.meta?.bgPosition || 'center',
+                backgroundRepeat: 'no-repeat',
                 outline: 'none',
                 ...flexStyles,
                 ...customStyles
