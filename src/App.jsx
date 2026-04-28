@@ -6,14 +6,30 @@ import { MantineProvider, createTheme } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './App.css'
 
+const STORAGE_KEY = 'flex-architect-state-v1';
+
 const theme = createTheme({
     primaryColor: 'indigo',
     fontFamily: 'Inter, sans-serif',
 })
 
+// Пытаемся загрузить начальные данные из localStorage
+const getInitialBlocks = () => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+        }
+    } catch (e) {
+        console.error("❌ Failed to load from storage:", e);
+    }
+    return [];
+};
+
 const initialState = {
-    blocks: [],
-    history: [[]],
+    blocks: getInitialBlocks(),
+    history: [getInitialBlocks()],
     index: 0
 };
 
@@ -25,16 +41,13 @@ function reducer(state, action) {
                     ? action.payload(state.blocks) 
                     : action.payload;
 
-                // Валидация данных
-                if (!Array.isArray(nextBlocks)) {
-                    console.error("❌ Reducer error: Payload is not an array", nextBlocks);
-                    return state;
-                }
+                if (!Array.isArray(nextBlocks)) return state;
+
+                // Сохраняем в localStorage
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBlocks));
 
                 const newHistory = state.history.slice(0, state.index + 1);
                 newHistory.push(nextBlocks);
-                
-                // Ограничиваем историю 50 шагами
                 if (newHistory.length > 50) newHistory.shift();
 
                 return {
@@ -44,33 +57,35 @@ function reducer(state, action) {
                     index: newHistory.length - 1
                 };
             } catch (err) {
-                console.error("❌ Reducer crash prevented:", err);
                 return state;
             }
         }
         case 'UNDO': {
             if (state.index > 0) {
                 const nextIndex = state.index - 1;
-                return {
-                    ...state,
-                    blocks: state.history[nextIndex],
-                    index: nextIndex
-                };
+                const nextBlocks = state.history[nextIndex];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBlocks));
+                return { ...state, blocks: nextBlocks, index: nextIndex };
             }
             return state;
         }
         case 'REDO': {
             if (state.index < state.history.length - 1) {
                 const nextIndex = state.index + 1;
-                return {
-                    ...state,
-                    blocks: state.history[nextIndex],
-                    index: nextIndex
-                };
+                const nextBlocks = state.history[nextIndex];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBlocks));
+                return { ...state, blocks: nextBlocks, index: nextIndex };
             }
             return state;
         }
-        case 'RESET': return initialState;
+        case 'CLEAR': {
+            localStorage.removeItem(STORAGE_KEY);
+            return {
+                blocks: [],
+                history: [[]],
+                index: 0
+            };
+        }
         default: return state;
     }
 }
@@ -108,29 +123,23 @@ function App() {
         setSelectedId(id);
     }, [selectedId, state.blocks, pushToHistory]);
 
-    // Удаление через Delete
     useEffect(() => {
         const handleKeys = (e) => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-                // Если мы в инпуте - не удаляем
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-                
                 const deleteRecursive = (id, currentBlocks) => {
                     let res = currentBlocks.filter(b => b.id !== id);
                     const children = currentBlocks.filter(b => b.parentId === id);
-                    children.forEach(child => {
-                        res = deleteRecursive(child.id, res);
-                    });
+                    children.forEach(child => { res = deleteRecursive(child.id, res); });
                     return res;
                 };
-                
                 pushToHistory(prev => deleteRecursive(selectedId, prev));
                 setSelectedId(null);
             }
-            // Undo/Redo
             if (e.metaKey || e.ctrlKey) {
                 if (e.key === 'z') {
                     e.preventDefault();
+                    setSelectedId(null); // Снимаем выделение
                     if (e.shiftKey) dispatch({ type: 'REDO' });
                     else dispatch({ type: 'UNDO' });
                 }
@@ -153,8 +162,11 @@ function App() {
                     onSelect={setSelectedId}
                     onAddBlock={addBlock}
                     onShowCode={() => setShowCode(true)}
-                    onMetaUpdate={(updates, id) => {
-                        pushToHistory(prev => prev.map(b => b.id === id ? { ...b, meta: { ...b.meta, ...updates } } : b));
+                    onClear={() => {
+                        if (confirm('Are you sure you want to clear the canvas?')) {
+                            dispatch({ type: 'CLEAR' });
+                            setSelectedId(null);
+                        }
                     }}
                 />
                 
@@ -163,6 +175,7 @@ function App() {
                     setBlocks={pushToHistory}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
+                    onAddBlock={addBlock}
                 />
 
                 <CodeModal 

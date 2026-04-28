@@ -9,27 +9,16 @@ import {
   Divider,
   Paper,
   Badge,
-  ActionIcon,
-  SegmentedControl,
-  NumberInput,
-  SimpleGrid
+  ActionIcon
 } from '@mantine/core'
 import { 
   IconBolt, 
   IconFiles, 
   IconSettings, 
-  IconArrowsHorizontal, 
-  IconArrowsVertical,
-  IconLayoutAlignLeft,
-  IconLayoutAlignCenter,
-  IconLayoutAlignRight,
-  IconLayoutAlignTop,
-  IconLayoutAlignMiddle,
-  IconLayoutAlignBottom,
-  IconLayoutDistributeHorizontal,
-  IconCircle,
-  IconPlus,
-  IconCode
+  IconCircle, 
+  IconPlus, 
+  IconCode,
+  IconTrash
 } from '@tabler/icons-react'
 
 export default function Sidebar({ 
@@ -38,21 +27,8 @@ export default function Sidebar({
     onShowCode, 
     onSelect,
     onAddBlock,
-    onMetaUpdate, 
-    MonacoComponent
+    onClear
 }) {
-
-    const updateMeta = (key, value) => {
-        onMetaUpdate({ [key]: value }, activeShape?.id);
-    }
-
-    const updateNestedMeta = (group, key, value) => {
-        const currentGroup = activeShape?.meta?.[group] || { top: 0, right: 0, bottom: 0, left: 0 };
-        // Поддержка старого формата (если group была числом)
-        const safeGroup = typeof currentGroup === 'object' ? currentGroup : { top: currentGroup, right: currentGroup, bottom: currentGroup, left: currentGroup };
-        
-        updateMeta(group, { ...safeGroup, [key]: value });
-    }
 
     const renderNavigatorTree = (items, level = 0) => {
         return items.map(s => {
@@ -88,15 +64,10 @@ export default function Sidebar({
     }
 
     const rootShapes = shapes.filter(s => s && !s.parentId);
-    const m = activeShape?.meta?.margin || { top: 0, right: 0, bottom: 0, left: 0 };
-    const p = activeShape?.meta?.padding || { top: 0, right: 0, bottom: 0, left: 0 };
-    
-    // Безопасное получение значений паддинга (защита от старого формата)
-    const safeP = typeof p === 'object' ? p : { top: p, right: p, bottom: p, left: p };
 
     return (
         <Box className="sidebar glass-dark premium-blur" style={{ 
-            width: 320, 
+            width: 300, 
             height: '100vh',
             borderRight: '1px solid rgba(255,255,255,0.05)', 
             display: 'flex', 
@@ -109,7 +80,9 @@ export default function Sidebar({
                         <IconBolt size={20} color="#4f46e5" />
                         <Text fw={800} size="sm" c="white" lts="1px">FLEX ARCHITECT</Text>
                     </Group>
-                    <Badge variant="filled" color="indigo" size="xs">v3.0 PRO</Badge>
+                    <ActionIcon variant="subtle" color="red" size="sm" onClick={onClear} title="Clear Canvas">
+                        <IconTrash size={16} />
+                    </ActionIcon>
                 </Group>
                 <Group grow gap="xs">
                     <Button leftSection={<IconPlus size={16} />} variant="filled" color="indigo" size="xs" onClick={() => onAddBlock(null)}>
@@ -138,7 +111,7 @@ export default function Sidebar({
                     <Stack gap="md">
                         <Group gap="xs" c="dimmed">
                             <IconSettings size={16} />
-                            <Text size="xs" fw={700} lts="0.5px">PROPERTIES</Text>
+                            <Text size="xs" fw={700} lts="0.5px">STRUCTURE</Text>
                         </Group>
                         
                         {activeShape ? (
@@ -148,65 +121,16 @@ export default function Sidebar({
                                     variant="light" color="indigo" size="xs" fullWidth
                                     onClick={() => onAddBlock(activeShape.id)}
                                 >
-                                    Add Child
+                                    Add Child Block
                                 </Button>
-
-                                <Divider opacity={0.1} label="Layout" labelPosition="center" />
-
-                                <Stack gap={8}>
-                                    <Text size="xs" fw={700} c="dimmed">DIRECTION</Text>
-                                    <SegmentedControl fullWidth size="xs" value={activeShape.meta?.direction || 'row'} onChange={(val) => updateMeta('direction', val)}
-                                        data={[{ label: <IconArrowsHorizontal size={14}/>, value: 'row' }, { label: <IconArrowsVertical size={14}/>, value: 'column' }]} />
-                                </Stack>
-
-                                <Group grow gap="xs">
-                                    <Stack gap={4}>
-                                        <Text size="xs" fw={700} c="dimmed">JUSTIFY</Text>
-                                        <Group grow gap={2}>
-                                            <ActionIcon size="sm" variant={activeShape.meta?.justify === 'flex-start' ? 'filled' : 'light'} color="indigo" onClick={() => updateMeta('justify', 'flex-start')}><IconLayoutAlignLeft size={14}/></ActionIcon>
-                                            <ActionIcon size="sm" variant={activeShape.meta?.justify === 'center' ? 'filled' : 'light'} color="indigo" onClick={() => updateMeta('justify', 'center')}><IconLayoutAlignCenter size={14}/></ActionIcon>
-                                            <ActionIcon size="sm" variant={activeShape.meta?.justify === 'flex-end' ? 'filled' : 'light'} color="indigo" onClick={() => updateMeta('justify', 'flex-end')}><IconLayoutAlignRight size={14}/></ActionIcon>
-                                        </Group>
-                                    </Stack>
-                                    <Stack gap={4}>
-                                        <Text size="xs" fw={700} c="dimmed">ALIGN</Text>
-                                        <Group grow gap={2}>
-                                            <ActionIcon size="sm" variant={activeShape.meta?.align === 'flex-start' ? 'filled' : 'light'} color="indigo" onClick={() => updateMeta('align', 'flex-start')}><IconLayoutAlignTop size={14}/></ActionIcon>
-                                            <ActionIcon size="sm" variant={activeShape.meta?.align === 'center' ? 'filled' : 'light'} color="indigo" onClick={() => updateMeta('align', 'center')}><IconLayoutAlignMiddle size={14}/></ActionIcon>
-                                            <ActionIcon size="sm" variant={activeShape.meta?.align === 'flex-end' ? 'filled' : 'light'} color="indigo" onClick={() => updateMeta('align', 'flex-end')}><IconLayoutAlignBottom size={14}/></ActionIcon>
-                                        </Group>
-                                    </Stack>
-                                </Group>
-
-                                <NumberInput label="GAP" size="xs" value={activeShape.meta?.gap || 0} onChange={(val) => updateMeta('gap', val)} min={0} />
-
-                                {!activeShape.parentId ? (
-                                    <Text size="xs" c="dimmed" ta="center" py="sm" bg="rgba(0,0,0,0.2)" style={{ borderRadius: 4 }}>
-                                        Root element cannot have spacing
-                                    </Text>
-                                ) : (
-                                    <>
-                                        <Divider opacity={0.1} label="Padding" labelPosition="center" />
-                                        <SimpleGrid cols={2} spacing="xs">
-                                            <NumberInput label="TOP" size="xs" value={safeP.top} onChange={(v) => updateNestedMeta('padding', 'top', v)} />
-                                            <NumberInput label="RIGHT" size="xs" value={safeP.right} onChange={(v) => updateNestedMeta('padding', 'right', v)} />
-                                            <NumberInput label="BOTTOM" size="xs" value={safeP.bottom} onChange={(v) => updateNestedMeta('padding', 'bottom', v)} />
-                                            <NumberInput label="LEFT" size="xs" value={safeP.left} onChange={(v) => updateNestedMeta('padding', 'left', v)} />
-                                        </SimpleGrid>
-
-                                        <Divider opacity={0.1} label="Margin" labelPosition="center" />
-                                        <SimpleGrid cols={2} spacing="xs">
-                                            <NumberInput label="TOP" size="xs" value={m.top} onChange={(v) => updateNestedMeta('margin', 'top', v)} />
-                                            <NumberInput label="RIGHT" size="xs" value={m.right} onChange={(v) => updateNestedMeta('margin', 'right', v)} />
-                                            <NumberInput label="BOTTOM" size="xs" value={m.bottom} onChange={(v) => updateNestedMeta('margin', 'bottom', v)} />
-                                            <NumberInput label="LEFT" size="xs" value={m.left} onChange={(v) => updateNestedMeta('margin', 'left', v)} />
-                                        </SimpleGrid>
-                                    </>
-                                )}
+                                <Divider opacity={0.1} />
+                                <Text size="xs" c="dimmed" ta="center" italic>
+                                    Use canvas handles to adjust spacing
+                                </Text>
                             </Stack>
                         ) : (
                             <Paper p="xl" bg="rgba(0,0,0,0.1)" style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 12 }}>
-                                <Text size="xs" c="dimmed" ta="center">Select a block to edit its styles</Text>
+                                <Text size="xs" c="dimmed" ta="center">Select a block to manage hierarchy</Text>
                             </Paper>
                         )}
                     </Stack>
