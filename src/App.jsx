@@ -6,93 +6,17 @@ import { MantineProvider, createTheme } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './App.css'
 
-const STORAGE_KEY = 'flex-architect-state-v1';
+import { layoutReducer, initialState } from './store/layoutReducer'
+import { DEFAULT_BLOCK_META, COLORS } from './constants'
 
 const theme = createTheme({
     primaryColor: 'indigo',
     fontFamily: 'Inter, sans-serif',
 })
 
-// Пытаемся загрузить начальные данные из localStorage
-const getInitialBlocks = () => {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) return parsed;
-        }
-    } catch (e) {
-        console.error("❌ Failed to load from storage:", e);
-    }
-    return [];
-};
-
-const initialState = {
-    blocks: getInitialBlocks(),
-    history: [getInitialBlocks()],
-    index: 0
-};
-
-function reducer(state, action) {
-    switch (action.type) {
-        case 'PUSH_BLOCKS': {
-            try {
-                const nextBlocks = typeof action.payload === 'function' 
-                    ? action.payload(state.blocks) 
-                    : action.payload;
-
-                if (!Array.isArray(nextBlocks)) return state;
-
-                // Сохраняем в localStorage
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBlocks));
-
-                const newHistory = state.history.slice(0, state.index + 1);
-                newHistory.push(nextBlocks);
-                if (newHistory.length > 50) newHistory.shift();
-
-                return {
-                    ...state,
-                    blocks: nextBlocks,
-                    history: newHistory,
-                    index: newHistory.length - 1
-                };
-            } catch (err) {
-                return state;
-            }
-        }
-        case 'UNDO': {
-            if (state.index > 0) {
-                const nextIndex = state.index - 1;
-                const nextBlocks = state.history[nextIndex];
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBlocks));
-                return { ...state, blocks: nextBlocks, index: nextIndex };
-            }
-            return state;
-        }
-        case 'REDO': {
-            if (state.index < state.history.length - 1) {
-                const nextIndex = state.index + 1;
-                const nextBlocks = state.history[nextIndex];
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextBlocks));
-                return { ...state, blocks: nextBlocks, index: nextIndex };
-            }
-            return state;
-        }
-        case 'CLEAR': {
-            localStorage.removeItem(STORAGE_KEY);
-            return {
-                blocks: [],
-                history: [[]],
-                index: 0
-            };
-        }
-        default: return state;
-    }
-}
-
 function App() {
-    const [state, dispatch] = useReducer(reducer, initialState);
-    const [selectedId, setSelectedId] = useState(null);
+    const [state, dispatch] = useReducer(layoutReducer, initialState);
+    const [selectedId, setSelectedId] = useState(null); // Может быть строкой "id1,id2,id3"
     const [showCode, setShowCode] = useState(false);
 
     const pushToHistory = useCallback((newBlocks) => {
@@ -110,36 +34,44 @@ function App() {
             y: actualParentId ? 0 : 100 + (state.blocks.length * 20),
             w: actualParentId ? 100 : 200,
             h: actualParentId ? 100 : 200,
-            meta: {
-                direction: 'row',
-                justify: 'flex-start',
-                align: 'flex-start',
-                gap: 0,
-                padding: { top: 0, right: 0, bottom: 0, left: 0 },
-                margin: { top: 0, right: 0, bottom: 0, left: 0 }
-            }
+            meta: { ...DEFAULT_BLOCK_META }
         }
         pushToHistory([...state.blocks, newB]);
         setSelectedId(id);
     }, [selectedId, state.blocks, pushToHistory]);
 
+    // Mass Deletion Logic
+    const deleteBlocks = useCallback((idsString) => {
+        if (!idsString) return;
+        const idsToDelete = idsString.split(',');
+        
+        const deleteRecursive = (ids, currentBlocks) => {
+            let res = currentBlocks;
+            ids.forEach(id => {
+                const children = res.filter(b => b.parentId === id);
+                if (children.length > 0) {
+                    res = deleteRecursive(children.map(c => c.id), res);
+                }
+                res = res.filter(b => b.id !== id);
+            });
+            return res;
+        };
+        
+        pushToHistory(prev => deleteRecursive(idsToDelete, prev));
+        setSelectedId(null);
+    }, [pushToHistory]);
+
+    // Keyboard Shortcuts
     useEffect(() => {
         const handleKeys = (e) => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-                const deleteRecursive = (id, currentBlocks) => {
-                    let res = currentBlocks.filter(b => b.id !== id);
-                    const children = currentBlocks.filter(b => b.parentId === id);
-                    children.forEach(child => { res = deleteRecursive(child.id, res); });
-                    return res;
-                };
-                pushToHistory(prev => deleteRecursive(selectedId, prev));
-                setSelectedId(null);
+                deleteBlocks(selectedId);
             }
             if (e.metaKey || e.ctrlKey) {
                 if (e.key === 'z') {
                     e.preventDefault();
-                    setSelectedId(null); // Снимаем выделение
+                    setSelectedId(null);
                     if (e.shiftKey) dispatch({ type: 'REDO' });
                     else dispatch({ type: 'UNDO' });
                 }
@@ -147,15 +79,15 @@ function App() {
         }
         window.addEventListener('keydown', handleKeys);
         return () => window.removeEventListener('keydown', handleKeys);
-    }, [selectedId, pushToHistory]);
+    }, [selectedId, deleteBlocks]);
 
-    const activeBlock = Array.isArray(state.blocks) 
-        ? state.blocks.find(b => b && b.id === selectedId) 
-        : null;
+    // Находим первый выделенный блок для сайдбара
+    const firstId = selectedId?.split(',')[0];
+    const activeBlock = state.blocks.find(b => b && b.id === firstId);
 
     return (
         <MantineProvider theme={theme} defaultColorScheme="dark">
-            <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: '#0a0a0c' }}>
+            <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: COLORS.bg }}>
                 <Sidebar 
                     activeShape={activeBlock}
                     shapes={state.blocks}
@@ -163,7 +95,7 @@ function App() {
                     onAddBlock={addBlock}
                     onShowCode={() => setShowCode(true)}
                     onClear={() => {
-                        if (confirm('Are you sure you want to clear the canvas?')) {
+                        if (confirm('Clear everything?')) {
                             dispatch({ type: 'CLEAR' });
                             setSelectedId(null);
                         }

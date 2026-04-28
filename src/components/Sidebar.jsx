@@ -75,20 +75,14 @@ export default function Sidebar({
             zIndex: 100
         }}>
             <Box p="md" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <Group justify="space-between" mb="md">
+                <Group justify="space-between">
                     <Group gap="xs">
                         <IconBolt size={20} color="#4f46e5" />
                         <Text fw={800} size="sm" c="white" lts="1px">FLEX ARCHITECT</Text>
                     </Group>
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={onClear} title="Clear Canvas">
-                        <IconTrash size={16} />
+                    <ActionIcon variant="subtle" color="gray" size="sm" onClick={onShowCode} title="View Code">
+                        <IconCode size={16} />
                     </ActionIcon>
-                </Group>
-                <Group grow gap="xs">
-                    <Button leftSection={<IconPlus size={16} />} variant="filled" color="indigo" size="xs" onClick={() => onAddBlock(null)}>
-                        New Container
-                    </Button>
-                    <ActionIcon variant="light" color="gray" size="sm" onClick={onShowCode}><IconCode size={16}/></ActionIcon>
                 </Group>
             </Box>
 
@@ -106,33 +100,6 @@ export default function Sidebar({
                                 renderNavigatorTree(rootShapes)
                             )}
                         </Box>
-                    </Stack>
-
-                    <Stack gap="md">
-                        <Group gap="xs" c="dimmed">
-                            <IconSettings size={16} />
-                            <Text size="xs" fw={700} lts="0.5px">STRUCTURE</Text>
-                        </Group>
-                        
-                        {activeShape ? (
-                            <Stack gap="lg">
-                                <Button 
-                                    leftSection={<IconPlus size={14} />} 
-                                    variant="light" color="indigo" size="xs" fullWidth
-                                    onClick={() => onAddBlock(activeShape.id)}
-                                >
-                                    Add Child Block
-                                </Button>
-                                <Divider opacity={0.1} />
-                                <Text size="xs" c="dimmed" ta="center" italic>
-                                    Use canvas handles to adjust spacing
-                                </Text>
-                            </Stack>
-                        ) : (
-                            <Paper p="xl" bg="rgba(0,0,0,0.1)" style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 12 }}>
-                                <Text size="xs" c="dimmed" ta="center">Select a block to manage hierarchy</Text>
-                            </Paper>
-                        )}
                     </Stack>
                 </Stack>
             </ScrollArea>
