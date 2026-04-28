@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useReducer } from 'react'
+import React, { useState, useCallback, useEffect, useReducer, useMemo } from 'react'
 import Sidebar from './components/Sidebar'
 import Canvas from './canvas/Canvas'
 import CodeModal from './components/CodeModal'
@@ -8,6 +8,7 @@ import './App.css'
 
 import { layoutReducer, initialState } from './store/layoutReducer'
 import { DEFAULT_BLOCK_META, COLORS } from './constants'
+import AssetManager from './components/AssetManager';
 
 const theme = createTheme({
     primaryColor: 'indigo',
@@ -18,6 +19,13 @@ function App() {
     const [state, dispatch] = useReducer(layoutReducer, initialState);
     const [selectedId, setSelectedId] = useState(null);
     const [showCode, setShowCode] = useState(false);
+    const [assetManagerOpened, setAssetManagerOpened] = useState(false);
+
+    const firstSelectedId = useMemo(() => selectedId?.split(',')[0], [selectedId]);
+    const activeShape = useMemo(() => state.blocks.find(b => b && b.id === firstSelectedId), [state.blocks, firstSelectedId]);
+
+    const onAddAsset = (asset) => dispatch({ type: 'ADD_ASSET', payload: asset });
+    const onRemoveAsset = (id) => dispatch({ type: 'REMOVE_ASSET', payload: id });
 
     const pushToHistory = useCallback((newBlocksOrFunc) => {
         dispatch({ 
@@ -49,9 +57,8 @@ function App() {
     }, [selectedId, state.blocks, pushToHistory]);
 
     const updateBlockMeta = useCallback((id, key, value) => {
-        const newBlocks = state.blocks.map(b => b && b.id === id ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b);
-        pushToHistory(newBlocks);
-    }, [state.blocks, pushToHistory]);
+        pushToHistory(prev => prev.map(b => b && b.id === id ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b));
+    }, [pushToHistory]);
 
     const deleteBlocks = useCallback((idsString) => {
         if (!idsString) return;
@@ -65,9 +72,9 @@ function App() {
             });
             return res;
         };
-        pushToHistory(deleteRecursive(idsToDelete, state.blocks));
+        pushToHistory(prev => deleteRecursive(idsToDelete, prev));
         setSelectedId(null);
-    }, [state.blocks, pushToHistory]);
+    }, [pushToHistory]);
 
     useEffect(() => {
         const handleKeys = (e) => {
@@ -88,21 +95,20 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeys);
     }, [selectedId, deleteBlocks]);
 
-    const firstId = selectedId?.split(',')[0];
-    const activeBlock = state.blocks.find(b => b && b.id === firstId);
-
     return (
         <MantineProvider theme={theme} defaultColorScheme="dark">
             <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: COLORS.bg }}>
                 <Sidebar 
-                    activeShape={activeBlock}
+                    activeShape={activeShape}
                     shapes={state.blocks}
                     onSelect={setSelectedId}
                     onAddBlock={addBlock}
                     onUpdateMeta={updateBlockMeta}
                     onShowCode={() => setShowCode(true)}
+                    onOpenAssets={() => setAssetManagerOpened(true)}
                     blueprint={state.blueprint}
                     onUpdateBlueprint={updateBlueprint}
+                    onDeleteBlock={deleteBlocks}
                     onClear={() => {
                         if (confirm('Clear everything?')) {
                             dispatch({ type: 'CLEAR' });
@@ -121,7 +127,27 @@ function App() {
                     onUpdateBlueprint={updateBlueprint}
                 />
 
-                <CodeModal opened={showCode} onClose={() => setShowCode(false)} blocks={state.blocks} />
+                <CodeModal 
+                    opened={showCode} 
+                    onClose={() => setShowCode(false)} 
+                    blocks={state.blocks} 
+                />
+
+                <AssetManager 
+                    opened={assetManagerOpened}
+                    onClose={() => setAssetManagerOpened(false)}
+                    assets={state.assets}
+                    onAddAsset={onAddAsset}
+                    onRemoveAsset={onRemoveAsset}
+                    onSelect={(url) => {
+                        if (firstSelectedId && firstSelectedId !== 'blueprint-img') {
+                            updateBlockMeta(firstSelectedId, 'bgImage', url);
+                        } else if (firstSelectedId === 'blueprint-img') {
+                            updateBlueprint({ url });
+                        }
+                    }}
+                    selectedAssetUrl={firstSelectedId === 'blueprint-img' ? state.blueprint.url : activeShape?.meta?.bgImage}
+                />
             </div>
         </MantineProvider>
     )

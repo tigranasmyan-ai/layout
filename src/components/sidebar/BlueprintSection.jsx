@@ -1,29 +1,13 @@
 import React from 'react';
-import { Box, Group, Text, TextInput, Button, FileInput, ActionIcon, Stack, Slider } from '@mantine/core';
-import { IconBolt, IconPhoto, IconTrash } from '@tabler/icons-react';
+import { Box, Group, Text, Button, ActionIcon, Stack, Slider } from '@mantine/core';
+import { IconPhoto, IconTrash, IconPlus, IconLayout2 } from '@tabler/icons-react';
 
-export default function BlueprintSection({ blueprint, onUpdateBlueprint }) {
-    const handleImageUpload = (file) => {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                onUpdateBlueprint({ 
-                    url: e.target.result,
-                    w: img.naturalWidth 
-                });
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    };
-
+export default function BlueprintSection({ blueprint, onUpdateBlueprint, onOpenAssets }) {
     return (
         <Box p="md" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <Group justify="space-between" mb="xs">
                 <Group gap={6}>
-                    <IconPhoto size={14} color="#10b981" />
+                    <IconLayout2 size={14} color="#10b981" />
                     <Text size="xs" fw={700} c="dimmed">BLUEPRINT (MOCKUP)</Text>
                 </Group>
                 {blueprint.url && (
@@ -34,15 +18,28 @@ export default function BlueprintSection({ blueprint, onUpdateBlueprint }) {
             </Group>
             
             {!blueprint.url ? (
-                <FileInput 
-                    placeholder="Import image mockup..." 
+                <Button 
+                    variant="light" 
                     size="xs" 
-                    accept="image/*"
-                    leftSection={<IconPhoto size={14} />}
-                    onChange={handleImageUpload}
-                />
+                    fullWidth
+                    leftSection={<IconPlus size={14} />}
+                    onClick={onOpenAssets}
+                >
+                    Add Mockup
+                </Button>
             ) : (
                 <Stack gap="xs">
+                    <Button 
+                        variant="subtle" 
+                        size="xs" 
+                        fullWidth
+                        leftSection={<IconPhoto size={14} />}
+                        onClick={onOpenAssets}
+                        styles={{ label: { fontSize: '10px' } }}
+                    >
+                        Change Mockup
+                    </Button>
+                    
                     <Group justify="space-between">
                         <Text size="10px" c="dimmed">OPACITY</Text>
                         <Text size="10px" fw={700} c="white">{Math.round(blueprint.opacity * 100)}%</Text>

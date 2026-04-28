@@ -8,6 +8,7 @@ const getInitialState = () => {
             return {
                 blocks: parsed.blocks || [],
                 blueprint: parsed.blueprint || { url: null, x: 0, y: 0, w: 1200, opacity: 0.5 },
+                assets: parsed.assets || [],
                 history: [parsed.blocks || []],
                 historyIndex: 0
             };
@@ -18,6 +19,7 @@ const getInitialState = () => {
     return {
         blocks: [],
         blueprint: { url: null, x: 0, y: 0, w: 1200, opacity: 0.5 },
+        assets: [],
         history: [[]],
         historyIndex: 0
     };
@@ -43,6 +45,18 @@ export function layoutReducer(state, action) {
                 blueprint: { ...state.blueprint, ...action.payload }
             };
             break;
+        case 'ADD_ASSET':
+            newState = {
+                ...state,
+                assets: [...state.assets, action.payload]
+            };
+            break;
+        case 'REMOVE_ASSET':
+            newState = {
+                ...state,
+                assets: state.assets.filter(a => a.id !== action.payload)
+            };
+            break;
         case 'UNDO':
             if (state.historyIndex > 0) {
                 newState = {
@@ -66,6 +80,7 @@ export function layoutReducer(state, action) {
                 ...state,
                 blocks: [],
                 blueprint: { url: null, x: 0, y: 0, w: 1200, opacity: 0.5 },
+                assets: [],
                 history: [[]],
                 historyIndex: 0
             };
@@ -75,6 +90,10 @@ export function layoutReducer(state, action) {
     }
 
     // Save to localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ blocks: newState.blocks, blueprint: newState.blueprint }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+        blocks: newState.blocks, 
+        blueprint: newState.blueprint,
+        assets: newState.assets 
+    }));
     return newState;
 }

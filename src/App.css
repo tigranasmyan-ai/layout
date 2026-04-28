@@ -102,3 +102,7 @@ body, html, #root {
 .viewer {
   height: 100%;
 }
+.mantine-ScrollArea-viewport > div {
+  padding: 0 !important;
+  display: block !important;
+}

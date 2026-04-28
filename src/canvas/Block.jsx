@@ -110,7 +110,6 @@ const Block = ({
                         onUpdateMeta={(key, val) => onUpdateMeta(block.id, key, val)} 
                         onUpdateSize={(key, val) => onUpdateSize(block.id, key, val)}
                         onAddBlock={onAddBlock}
-                        onToggleCss={() => {}} 
                     />
                     <div style={{ pointerEvents: isTransforming ? 'none' : 'auto' }}>
                         <SpacingControls 

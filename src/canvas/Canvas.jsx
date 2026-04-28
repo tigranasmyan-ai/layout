@@ -14,6 +14,7 @@ export default function Canvas({ blocks, setBlocks, selectedId, onSelect, onAddB
     const [zoom, setZoom] = useState(1)
     const [isTransforming, setIsTransforming] = useState(false)
 
+
     // Разделяем интерактивность на два хука: общее управление и логика отступов
     const { isPanning, editingSpace, setEditingSpace } = useCanvasInteraction(zoom, setZoom, setBlocks);
     const { isInteracting, startDraggingSpace } = useSpacingLogic(zoom, setBlocks);
@@ -127,8 +128,24 @@ export default function Canvas({ blocks, setBlocks, selectedId, onSelect, onAddB
                 <EmptyState onAdd={() => onAddBlock(null)} />
             )}
 
-            <InfiniteViewer ref={viewerRef} className={`viewer ${isPanning ? 'panning' : ''}`} usePinch={true} useWheelScroll={true} useMouseDrag={isPanning} zoom={zoom} onPinch={e => setZoom(e.zoom)} style={{ width: '100%', height: '100%' }}>
-                <div className="viewport" style={{ width: '5000px', height: '5000px', position: 'relative' }}>
+            <InfiniteViewer 
+                ref={viewerRef} 
+                className={`viewer ${isPanning ? 'panning' : ''}`} 
+                usePinch={true} 
+                useWheelScroll={true} 
+                useMouseDrag={isPanning} 
+                zoom={zoom} 
+                onPinch={e => setZoom(e.zoom)}
+                style={{ width: '100%', height: '100%', background: '#000' }}
+            >
+                <div className="viewport" style={{ 
+                    width: '10000px', 
+                    height: '10000px', 
+                    position: 'relative',
+                    backgroundImage: `radial-gradient(rgba(255,255,255,0.05) 1px, transparent 0)`,
+                    backgroundSize: '40px 40px',
+                    backgroundPosition: '-1px -1px'
+                }}>
                     {blueprint.url && <BlueprintImg blueprint={blueprint} selectedId={selectedId} onSelect={onSelect} onUpdate={onUpdateBlueprint} />}
 
                     {(blocksByParent['root'] || []).map(block => (
@@ -166,7 +183,6 @@ export default function Canvas({ blocks, setBlocks, selectedId, onSelect, onAddB
                             const id = e.target.id === 'blueprint-img' ? 'blueprint-img' : e.target.getAttribute('data-id');
                             if (id === 'blueprint-img') onUpdateBlueprint({ w: e.width, x: e.drag.left, y: e.drag.top });
                             else if (id) {
-                                // При ручном ресайзе всегда выключаем flex-растягивание
                                 const update = { 
                                     w: Math.max(e.width, 10), 
                                     h: Math.max(e.height, 10), 
@@ -179,7 +195,6 @@ export default function Canvas({ blocks, setBlocks, selectedId, onSelect, onAddB
                                         maxHeight: 'none'
                                     } 
                                 };
-                                // Координаты меняем только для корневых блоков
                                 if (!blocks.find(b => b.id === id)?.parentId) {
                                     update.x = e.drag.left;
                                     update.y = e.drag.top;

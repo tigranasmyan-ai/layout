@@ -9,21 +9,31 @@ import BackgroundSection from './sidebar/BackgroundSection'
 import TypographySection from './sidebar/TypographySection'
 import AdvancedCssSection from './sidebar/AdvancedCssSection'
 
+import { getPref, updatePref } from '../utils/storage'
+
 export default function Sidebar({ 
     activeShape, 
     shapes, 
     onSelect, 
     onUpdateMeta, 
     onShowCode, 
+    onOpenAssets,
+    onDeleteBlock,
     onClear,
     blueprint,
     onUpdateBlueprint
 }) {
-    const [openSections, setOpenSections] = React.useState({
-        background: true,
-        content: true,
-        css: false
-    });
+    const [openSections, setOpenSections] = React.useState(() => 
+        getPref('sidebarSections', {
+            background: true,
+            content: true,
+            css: false
+        })
+    );
+
+    React.useEffect(() => {
+        updatePref('sidebarSections', openSections);
+    }, [openSections]);
 
     const toggleSection = (section) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -48,6 +58,7 @@ export default function Sidebar({
             <BlueprintSection 
                 blueprint={blueprint} 
                 onUpdateBlueprint={onUpdateBlueprint} 
+                onOpenAssets={onOpenAssets}
             />
 
             {/* NAVIGATOR */}
@@ -55,6 +66,7 @@ export default function Sidebar({
                 shapes={shapes} 
                 activeShape={activeShape} 
                 onSelect={onSelect} 
+                onDelete={onDeleteBlock}
                 onClear={onClear} 
             />
 
@@ -66,6 +78,7 @@ export default function Sidebar({
                         onUpdateMeta={onUpdateMeta} 
                         isOpen={openSections.background} 
                         onToggle={() => toggleSection('background')} 
+                        onOpenAssets={onOpenAssets}
                     />
                     
                     <TypographySection 

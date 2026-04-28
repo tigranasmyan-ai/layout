@@ -10,24 +10,17 @@ import {
   IconLayoutAlignBottom,
   IconLayoutDistributeHorizontal,
   IconPlus,
-  IconFold,
-  IconAlignLeft,
-  IconAlignCenter,
-  IconAlignRight,
-  IconBold
+  IconFold
 } from '@tabler/icons-react';
 
 const Divider = () => <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />;
 
-export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, onUpdateMeta, onUpdateSize, onAddBlock, onToggleCss }) {
+export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, onUpdateMeta, onUpdateSize, onAddBlock }) {
     const invZoom = 1 / zoom;
     const { 
-        direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap',
-        tag = '', fontSize = 16, fontWeight = 400, textAlign = 'left' 
+        direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap'
     } = block.meta || {};
-    const isTextTag = ['h1', 'h2', 'p'].includes(tag);
     const [showMultiAdd, setShowMultiAdd] = useState(false);
-    const [showTextSettings, setShowTextSettings] = useState(false);
 
     return (
         <div style={{
