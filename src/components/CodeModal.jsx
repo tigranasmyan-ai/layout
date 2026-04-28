@@ -1,101 +1,21 @@
 import React, { useState } from 'react'
 import { 
-  Modal, 
-  Tabs, 
-  ActionIcon, 
-  CopyButton, 
-  Tooltip, 
-  Paper,
-  Box,
-  Text,
-  Group,
-  ScrollArea
+  Modal, Tabs, ActionIcon, CopyButton, Tooltip, Paper, Box, Text, Group, ScrollArea 
 } from '@mantine/core'
 import { 
-  IconCopy, 
-  IconCheck, 
-  IconBrandHtml5, 
-  IconBrandCss3 
+  IconCopy, IconCheck, IconBrandHtml5, IconBrandCss3 
 } from '@tabler/icons-react'
 
-// Вспомогательная функция для сборки дерева
-const blocksToTree = (items) => {
-    const map = {}
-    items.forEach(b => map[b.id] = { ...b, children: [] })
-    const roots = []
-    items.forEach(b => {
-        if (b.parentId && map[b.parentId]) map[b.parentId].children.push(map[b.id])
-        else roots.push(map[b.id])
-    })
-    return roots
-}
-
-export const generateHTML = (nodes, indent = "") => {
-    return nodes.map(n => {
-        const name = `box-${n.id}`;
-        const tag = n.meta?.tag || 'div';
-        const text = n.meta?.text || '';
-        
-        let children = n.children?.length ? `\n${generateHTML(n.children, indent + "  ")}${indent}` : "";
-        
-        // Если есть текст, добавляем его перед детьми
-        const content = text ? (children ? `\n${indent}  ${text}${children}` : text) : children;
-        
-        return `${indent}<${tag} class="${name}">${content}</${tag}>`;
-    }).join("\n");
-};
-
-export const generateCSS = (nodes) => {
-    let out = '';
-    const traverse = (items) => {
-        items.forEach(n => {
-            const m = n.meta || {};
-            const p = m.padding || { top: 0, right: 0, bottom: 0, left: 0 };
-            const mar = m.margin || { top: 0, right: 0, bottom: 0, left: 0 };
-
-            out += `.box-${n.id} {\n`;
-            out += `  display: flex;\n`;
-            out += `  flex-direction: ${m.direction || 'row'};\n`;
-            out += `  justify-content: ${m.justify || 'flex-start'};\n`;
-            out += `  align-items: ${m.align || 'flex-start'};\n`;
-            out += `  flex-wrap: ${m.wrap || 'nowrap'};\n`;
-            out += `  gap: ${m.gap || 0}px;\n`;
-
-            // Свойства гибкости
-            if (m.flexGrow !== undefined) out += `  flex-grow: ${m.flexGrow};\n`;
-            if (m.flexBasis !== undefined) out += `  flex-basis: ${m.flexBasis};\n`;
-            if (m.alignSelf && m.alignSelf !== 'auto') out += `  align-self: ${m.alignSelf};\n`;
-
-            // Размеры
-            const w = m.w || n.w;
-            const h = m.h || n.h;
-            if (w !== undefined) out += `  width: ${typeof w === 'number' ? w + 'px' : w};\n`;
-            if (h !== undefined) out += `  height: ${typeof h === 'number' ? h + 'px' : h};\n`;
-
-            // Отступы (Shorthand: top right bottom left)
-            out += `  padding: ${p.top}px ${p.right}px ${p.bottom}px ${p.left}px;\n`;
-            out += `  margin: ${mar.top}px ${mar.right}px ${mar.bottom}px ${mar.left}px;\n`;
-            
-            // Пользовательский CSS
-            if (m.customCss) out += `  ${m.customCss}\n`;
-            
-            out += `}\n\n`;
-            
-            if (n.children?.length) traverse(n.children);
-        });
-    };
-    traverse(nodes);
-    return out;
-};
+// Utilities
+import { blocksToTree, generateHTML, generateCSS } from '../utils/codeGenerator';
 
 export default function CodeModal({ opened, onClose, blocks = [] }) {
     const [activeTab, setActiveTab] = useState('html')
     
-    // Безопасно собираем дерево
-    const tree = blocksToTree(blocks);
-    
-    const htmlCode = generateHTML(tree);
-    const cssCode = generateCSS(tree);
+    // Безопасно собираем дерево и генерируем код
+    const tree = React.useMemo(() => blocksToTree(blocks), [blocks]);
+    const htmlCode = React.useMemo(() => generateHTML(tree), [tree]);
+    const cssCode = React.useMemo(() => generateCSS(tree), [tree]);
 
     return (
         <Modal 
@@ -106,6 +26,7 @@ export default function CodeModal({ opened, onClose, blocks = [] }) {
             radius="md"
             padding="md"
             overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+            styles={{ content: { background: '#1a1a1e', border: '1px solid rgba(255,255,255,0.1)' }, header: { background: '#1a1a1e' } }}
         >
             <Tabs value={activeTab} onChange={setActiveTab} variant="outline" radius="md">
                 <Tabs.List mb="md">

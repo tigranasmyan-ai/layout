@@ -39,6 +39,12 @@ export function layoutReducer(state, action) {
                 historyIndex: newHistory.length
             };
             break;
+        case 'SET_BLOCKS':
+            newState = {
+                ...state,
+                blocks: action.payload
+            };
+            break;
         case 'UPDATE_BLUEPRINT':
             newState = {
                 ...state,
