@@ -19,8 +19,15 @@ function App() {
     const [selectedId, setSelectedId] = useState(null);
     const [showCode, setShowCode] = useState(false);
 
-    const pushToHistory = useCallback((newBlocks) => {
-        dispatch({ type: 'PUSH_BLOCKS', payload: newBlocks });
+    const pushToHistory = useCallback((newBlocksOrFunc) => {
+        dispatch({ 
+            type: 'PUSH_BLOCKS', 
+            payload: typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(state.blocks) : newBlocksOrFunc 
+        });
+    }, [state.blocks]);
+
+    const updateBlueprint = useCallback((payload) => {
+        dispatch({ type: 'UPDATE_BLUEPRINT', payload });
     }, []);
 
     const addBlock = useCallback((parentId = null) => {
@@ -93,6 +100,8 @@ function App() {
                     onAddBlock={addBlock}
                     onUpdateMeta={updateBlockMeta}
                     onShowCode={() => setShowCode(true)}
+                    blueprint={state.blueprint}
+                    onUpdateBlueprint={updateBlueprint}
                     onClear={() => {
                         if (confirm('Clear everything?')) {
                             dispatch({ type: 'CLEAR' });
@@ -107,6 +116,8 @@ function App() {
                     selectedId={selectedId}
                     onSelect={setSelectedId}
                     onAddBlock={addBlock}
+                    blueprint={state.blueprint}
+                    onUpdateBlueprint={updateBlueprint}
                 />
 
                 <CodeModal opened={showCode} onClose={() => setShowCode(false)} blocks={state.blocks} />
