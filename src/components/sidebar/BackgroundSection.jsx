@@ -1,51 +1,75 @@
 import React from 'react';
-import { Box, Group, Text, Stack, Button, ActionIcon, SegmentedControl } from '@mantine/core';
-import { IconPhoto, IconTrash, IconPlus, IconChevronDown } from '@tabler/icons-react';
+import { Box, Group, Text, ActionIcon, Stack, ColorInput, Select, Button } from '@mantine/core';
+import { IconChevronDown, IconBrush, IconPhoto, IconSettings, IconPlus } from '@tabler/icons-react';
 
-export default function BackgroundSection({ activeShape, onUpdateMeta, isOpen, onToggle, onOpenAssets }) {
+export default function BackgroundSection({ 
+    activeShape, onUpdateMeta, isOpen, onToggle, onOpenAssets, onOpenColors, palette = []
+}) {
+    const m = activeShape?.meta || {};
+
+    const colorOptions = palette.map(c => ({ value: c.value, label: c.name }));
+    const selectedPaletteColor = palette.find(c => c.value === m.bgColor);
+    const displayValue = selectedPaletteColor ? selectedPaletteColor.value : null;
+
     return (
         <Box style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <Group justify="space-between" p="xs" style={{ cursor: 'pointer' }} onClick={onToggle}>
+            <Group 
+                p="xs" px="md" justify="space-between" 
+                style={{ cursor: 'pointer', background: isOpen ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+                onClick={onToggle}
+            >
                 <Group gap="xs">
-                    <IconPhoto size={14} color="#ec4899" />
+                    <IconBrush size={14} color="gray" />
                     <Text size="xs" fw={700} c="dimmed">BACKGROUND</Text>
                 </Group>
-                <IconChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                <IconChevronDown size={14} style={{ transform: isOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
             </Group>
-            
-            {isOpen && (
-                <Stack gap="xs" p="md" pt={0}>
-                    <Button 
-                        variant="light" 
-                        size="xs" 
-                        fullWidth
-                        leftSection={<IconPlus size={14} />}
-                        onClick={onOpenAssets}
-                    >
-                        Open Assets
-                    </Button>
 
-                    {activeShape.meta?.bgImage && (
-                        <Group justify="space-between">
-                            <Text size="10px" c="dimmed">Image is active</Text>
-                            <ActionIcon size="xs" color="red" variant="subtle" onClick={() => onUpdateMeta(activeShape.id, 'bgImage', null)}>
-                                <IconTrash size={14} />
+            {isOpen && (
+                <Stack p="md" gap="sm">
+                    <Box>
+                        <Group justify="space-between" mb={4}>
+                            <Text size="xs" fw={500}>Background Color</Text>
+                            <ActionIcon variant="subtle" size="xs" onClick={onOpenColors} title="Manage Palette">
+                                <IconSettings size={12} />
                             </ActionIcon>
                         </Group>
-                    )}
+                        {palette.length > 0 ? (
+                            <Select 
+                                size="xs"
+                                placeholder="Select from palette"
+                                data={colorOptions}
+                                value={displayValue}
+                                onChange={(val) => onUpdateMeta(activeShape.id, 'bgColor', val)}
+                            />
+                        ) : (
+                            <Button fullWidth size="xs" variant="light" leftSection={<IconPlus size={14}/>} onClick={onOpenColors}>
+                                Add Project Colors
+                            </Button>
+                        )}
+                    </Box>
 
-                    <Text size="10px" fw={700} c="dimmed" mt="xs">SIZE MODE</Text>
-                    <SegmentedControl 
-                        size="xs" fullWidth
-                        disabled={!activeShape.meta?.bgImage}
-                        value={activeShape.meta?.bgSize || 'cover'}
-                        onChange={(val) => onUpdateMeta(activeShape.id, 'bgSize', val)}
-                        data={[
-                            { label: 'Cover', value: 'cover' },
-                            { label: 'Contain', value: 'contain' },
-                            { label: 'Auto', value: 'auto' },
-                        ]}
-                    />
+                    <Box>
+                        <Text size="xs" fw={500} mb={6}>Image</Text>
+                        {m.bgImage ? (
+                            <Stack gap={4}>
+                                <Box style={{ height: 60, borderRadius: 4, background: `url(${m.bgImage}) center/cover`, border: '1px solid rgba(255,255,255,0.1)' }} />
+                                <Group grow gap="xs">
+                                    <Select 
+                                        size="xs"
+                                        data={['cover', 'contain', 'auto']}
+                                        value={m.bgSize || 'cover'}
+                                        onChange={(val) => onUpdateMeta(activeShape.id, 'bgSize', val)}
+                                    />
+                                    <Button size="xs" variant="light" color="red" onClick={() => onUpdateMeta(activeShape.id, 'bgImage', null)}>Remove</Button>
+                                </Group>
+                            </Stack>
+                        ) : (
+                            <Button fullWidth size="xs" variant="light" leftSection={<IconPhoto size={14}/>} onClick={onOpenAssets}>
+                                Choose Image
+                            </Button>
+                        )}
+                    </Box>
                 </Stack>
             )}
         </Box>

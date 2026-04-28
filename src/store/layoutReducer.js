@@ -9,6 +9,8 @@ const getInitialState = () => {
                 blocks: parsed.blocks || [],
                 blueprint: parsed.blueprint || { url: null, x: 0, y: 0, w: 1200, opacity: 0.5 },
                 assets: parsed.assets || [],
+                fonts: parsed.fonts || [],
+                palette: parsed.palette || [],
                 history: [parsed.blocks || []],
                 historyIndex: 0
             };
@@ -20,6 +22,8 @@ const getInitialState = () => {
         blocks: [],
         blueprint: { url: null, x: 0, y: 0, w: 1200, opacity: 0.5 },
         assets: [],
+        fonts: [],
+        palette: [],
         history: [[]],
         historyIndex: 0
     };
@@ -30,7 +34,14 @@ export const initialState = getInitialState();
 export function layoutReducer(state, action) {
     let newState;
     switch (action.type) {
+        case 'ADD_COLOR_TO_PALETTE':
+            newState = { ...state, palette: [...state.palette, action.payload] };
+            break;
+        case 'REMOVE_COLOR_FROM_PALETTE':
+            newState = { ...state, palette: state.palette.filter(c => c.name !== action.payload) };
+            break;
         case 'PUSH_BLOCKS':
+// ...
             const newHistory = state.history.slice(0, state.historyIndex + 1);
             newState = {
                 ...state,
@@ -63,7 +74,21 @@ export function layoutReducer(state, action) {
                 assets: state.assets.filter(a => a.id !== action.payload)
             };
             break;
+        case 'ADD_FONT':
+            if (state.fonts.find(f => f.family === action.payload.family)) return state;
+            newState = {
+                ...state,
+                fonts: [...state.fonts, action.payload]
+            };
+            break;
+        case 'REMOVE_FONT':
+            newState = {
+                ...state,
+                fonts: state.fonts.filter(f => f.family !== action.payload)
+            };
+            break;
         case 'UNDO':
+// ... (rest same)
             if (state.historyIndex > 0) {
                 newState = {
                     ...state,

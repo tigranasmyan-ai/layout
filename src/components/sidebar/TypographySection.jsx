@@ -1,74 +1,154 @@
-import React from 'react';
-import { Box, Group, Text, Stack, Select, TextInput, NumberInput } from '@mantine/core';
-import { IconTypography, IconChevronDown } from '@tabler/icons-react';
+import React, { useState } from 'react';
+import { 
+    Box, Group, Text, ActionIcon, Stack, Select, TextInput, Textarea, Modal, Button 
+} from '@mantine/core';
+import { IconChevronDown, IconTypography, IconPlus, IconArrowsMaximize, IconSettings } from '@tabler/icons-react';
 
-export default function TypographySection({ activeShape, shapes, onUpdateMeta, isOpen, onToggle }) {
-    if (!activeShape) return null;
+const SYSTEM_FONTS = [
+    { value: 'Inter, sans-serif', label: 'Inter (Default)' },
+    { value: 'serif', label: 'Serif' },
+    { value: 'sans-serif', label: 'Sans-serif' },
+    { value: 'monospace', label: 'Monospace' },
+];
+
+export default function TypographySection({ 
+    activeShape, onUpdateMeta, isOpen, onToggle, availableFonts = [], onOpenFonts, onOpenColors, palette = []
+}) {
+    const [fullEditorOpened, setFullEditorOpened] = useState(false);
+    const m = activeShape?.meta || {};
     
-    const hasChildren = shapes.some(s => s && s.parentId === activeShape.id);
-    if (hasChildren) return null;
+    const fontOptions = [
+        ...SYSTEM_FONTS,
+        ...availableFonts.map(f => ({ value: f.family, label: f.family }))
+    ];
+
+    const colorOptions = palette.map(c => ({ value: c.value, label: c.name }));
+    const selectedPaletteColor = palette.find(c => c.value === m.color);
+    const displayColorValue = selectedPaletteColor ? selectedPaletteColor.value : null;
 
     return (
         <Box style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <Group 
                 p="xs" px="md" justify="space-between" 
+                style={{ cursor: 'pointer', background: isOpen ? 'rgba(255,255,255,0.02)' : 'transparent' }}
                 onClick={onToggle}
-                style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)' }}
             >
-                <Group gap={6}>
-                    <IconTypography size={14} color="#818cf8" />
-                    <Text size="xs" fw={700} c="dimmed">CONTENT & TYPOGRAPHY</Text>
+                <Group gap="xs">
+                    <IconTypography size={14} color="gray" />
+                    <Text size="xs" fw={700} c="dimmed">TYPOGRAPHY</Text>
                 </Group>
-                <IconChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                <IconChevronDown size={14} style={{ transform: isOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
             </Group>
 
             {isOpen && (
-                <Stack gap="xs" p="md">
-                    <Select 
-                        label={<Text size="xs" c="dimmed">Semantic Tag</Text>}
-                        size="xs"
-                        value={activeShape.meta?.tag || 'div'}
-                        onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
-                        data={[
-                            { label: 'H1 - Main Heading', value: 'h1' },
-                            { label: 'H2 - Sub Heading', value: 'h2' },
-                            { label: 'H3 - Section Title', value: 'h3' },
-                            { label: 'H4 - Small Title', value: 'h4' },
-                            { label: 'H5 - Tiny Title', value: 'h5' },
-                            { label: 'H6 - Smallest Title', value: 'h6' },
-                            { label: 'P - Paragraph', value: 'p' },
-                        ]}
-                    />
-                    <TextInput 
-                        label={<Text size="xs" c="dimmed">Block Text Content</Text>}
-                        placeholder="Select tag first..."
-                        size="xs"
-                        disabled={!activeShape.meta?.tag}
-                        value={activeShape.meta?.text || ''}
-                        onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
-                    />
+                <Stack p="xs" gap={8}>
                     <Group grow gap="xs">
-                        <NumberInput 
-                            label={<Text size="xs" c="dimmed">Size</Text>}
-                            size="xs" disabled={!activeShape.meta?.tag}
-                            value={activeShape.meta?.fontSize || 16}
-                            onChange={(val) => onUpdateMeta(activeShape.id, 'fontSize', val)}
+                        <Select 
+                            label="Family"
+                            size="xs"
+                            data={fontOptions}
+                            value={m.fontFamily || 'Inter, sans-serif'}
+                            onChange={(val) => onUpdateMeta(activeShape.id, 'fontFamily', val)}
+                        />
+                        <Box>
+                            <Text size="xs" fw={500} mb={4}>Tag</Text>
+                            <Group gap={4}>
+                                <Select 
+                                    size="xs"
+                                    style={{ flex: 1 }}
+                                    data={['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']}
+                                    value={m.tag || 'p'}
+                                    onChange={(val) => onUpdateMeta(activeShape.id, 'tag', val)}
+                                />
+                                <ActionIcon variant="light" size="xs" onClick={onOpenFonts} title="Manage Fonts">
+                                    <IconPlus size={14} />
+                                </ActionIcon>
+                            </Group>
+                        </Box>
+                    </Group>
+
+                    <Box>
+                        <Group justify="space-between" mb={4}>
+                            <Text size="xs" fw={500}>Text Color</Text>
+                            <ActionIcon variant="subtle" size="xs" onClick={onOpenColors} title="Manage Palette">
+                                <IconSettings size={12} />
+                            </ActionIcon>
+                        </Group>
+                        {palette.length > 0 ? (
+                            <Select 
+                                size="xs"
+                                placeholder="Select from palette"
+                                data={colorOptions}
+                                value={displayColorValue}
+                                onChange={(val) => onUpdateMeta(activeShape.id, 'color', val)}
+                            />
+                        ) : (
+                            <Button fullWidth size="xs" variant="light" leftSection={<IconPlus size={14}/>} onClick={onOpenColors}>
+                                Setup Palette
+                            </Button>
+                        )}
+                    </Box>
+
+                    <Box style={{ position: 'relative' }}>
+                        <Textarea 
+                            label="Text"
+                            placeholder="Content..."
+                            size="xs"
+                            autosize
+                            minRows={1}
+                            maxRows={6}
+                            value={m.text || ''}
+                            onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                            styles={{ input: { paddingRight: 30 } }}
+                        />
+                        <ActionIcon 
+                            variant="subtle" 
+                            size="xs" 
+                            style={{ position: 'absolute', right: 4, bottom: 4, zIndex: 5 }}
+                            onClick={() => setFullEditorOpened(true)}
+                        >
+                            <IconArrowsMaximize size={12} />
+                        </ActionIcon>
+                    </Box>
+
+                    <Group grow gap="xs">
+                        <TextInput 
+                            label="Size"
+                            size="xs"
+                            placeholder="16px"
+                            value={m.fontSize || '16px'}
+                            onChange={(e) => onUpdateMeta(activeShape.id, 'fontSize', e.target.value)}
                         />
                         <Select 
-                            label={<Text size="xs" c="dimmed">Weight</Text>}
-                            size="xs" disabled={!activeShape.meta?.tag}
-                            value={String(activeShape.meta?.fontWeight || 400)}
-                            onChange={(val) => onUpdateMeta(activeShape.id, 'fontWeight', parseInt(val))}
-                            data={[
-                                { label: '100', value: '100' },
-                                { label: '400', value: '400' },
-                                { label: '700', value: '700' },
-                                { label: '900', value: '900' },
-                            ]}
+                            label="Weight"
+                            size="xs"
+                            data={['300', '400', '500', '600', '700', '800', '900']}
+                            value={String(m.fontWeight || '400')}
+                            onChange={(val) => onUpdateMeta(activeShape.id, 'fontWeight', val)}
                         />
                     </Group>
                 </Stack>
             )}
+
+            <Modal
+                opened={fullEditorOpened}
+                onClose={() => setFullEditorOpened(false)}
+                title={<Text fw={700}>Edit Content</Text>}
+                size="lg"
+                centered
+                styles={{ content: { background: '#1a1a1e', border: '1px solid rgba(255,255,255,0.1)' }, header: { background: '#1a1a1e' } }}
+            >
+                <Textarea 
+                    placeholder="Type your content here..."
+                    minRows={10}
+                    autosize
+                    value={m.text || ''}
+                    onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                />
+                <Group justify="flex-end" mt="md">
+                    <Button onClick={() => setFullEditorOpened(false)}>Done</Button>
+                </Group>
+            </Modal>
         </Box>
     );
 }
