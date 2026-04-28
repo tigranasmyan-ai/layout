@@ -1,79 +1,84 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { 
-  Box, 
-  Button, 
-  ScrollArea, 
-  Group, 
-  Stack, 
-  Text, 
-  Divider,
-  Paper,
-  Badge,
-  ActionIcon
+    Box, 
+    Text, 
+    Group, 
+    ScrollArea, 
+    ActionIcon, 
+    Stack
 } from '@mantine/core'
 import { 
-  IconBolt, 
-  IconFiles, 
-  IconSettings, 
-  IconCircle, 
-  IconPlus, 
-  IconCode,
-  IconTrash
+    IconBox, 
+    IconChevronDown, 
+    IconBolt,
+    IconCode,
+    IconLayout2,
+    IconBracketsContain
 } from '@tabler/icons-react'
+import Editor from '@monaco-editor/react'
 
-export default function Sidebar({ 
-    activeShape, 
-    shapes = [],
-    onShowCode, 
-    onSelect,
-    onAddBlock,
-    onClear
-}) {
+export default function Sidebar({ activeShape, shapes, onSelect, onAddBlock, onUpdateMeta, onShowCode, onClear }) {
+    const editorRef = useRef(null);
 
-    const renderNavigatorTree = (items, level = 0) => {
-        return items.map(s => {
-            const isSelected = activeShape?.id === s.id;
-            const children = shapes.filter(child => child && child.parentId === s.id);
-            
-            return (
-                <React.Fragment key={s.id}>
-                    <Box 
-                        onClick={() => onSelect(s.id)}
-                        style={{ 
-                            padding: '6px 10px', 
-                            paddingLeft: 10 + (level * 16),
-                            borderRadius: 4, 
-                            cursor: 'pointer',
-                            background: isSelected ? 'rgba(79, 70, 229, 0.2)' : 'transparent',
-                            border: isSelected ? '1px solid rgba(79, 70, 229, 0.3)' : '1px solid transparent',
-                            marginBottom: 2
-                        }}
-                    >
-                        <Group gap="xs" wrap="nowrap">
-                            <IconCircle size={ level === 0 ? 8 : 6} fill={isSelected ? '#818cf8' : 'rgba(255,255,255,0.2)'} strokeWidth={0} />
-                            <Text size="xs" fw={isSelected ? 700 : 500} c={isSelected ? 'white' : 'dimmed'} truncate>
-                                {s.id.toUpperCase()}
+    const handleEditorChange = (value) => {
+        if (!activeShape) return;
+        const prefix = `.${activeShape.id} {`;
+        const suffix = `}`;
+
+        // Если пользователь удалил префикс или суффикс, мы их восстановим
+        let content = value;
+        if (!content.startsWith(prefix)) {
+            content = prefix + '\n' + content.split('\n').slice(1).join('\n');
+        }
+        if (!content.endsWith(suffix)) {
+            content = content.split('\n').slice(0, -1).join('\n') + '\n' + suffix;
+        }
+
+        // Вырезаем только содержимое между первой и последней строкой для сохранения
+        const lines = content.split('\n');
+        const innerContent = lines.slice(1, -1).join('\n');
+        
+        onUpdateMeta(activeShape.id, 'customCss', innerContent);
+    };
+
+    const renderTree = (parentId = 'root') => {
+        const children = shapes.filter(s => s && (s.parentId || 'root') === parentId);
+        if (children.length === 0) return null;
+
+        return (
+            <Stack gap={2} mt={parentId === 'root' ? 0 : 4}>
+                {children.map(shape => (
+                    <Box key={shape.id}>
+                        <Group 
+                            gap="xs" px="xs" py={6}
+                            style={{ 
+                                borderRadius: 4, cursor: 'pointer',
+                                background: activeShape?.id === shape.id ? 'rgba(79, 70, 229, 0.2)' : 'transparent',
+                                border: activeShape?.id === shape.id ? '1px solid rgba(79, 70, 229, 0.3)' : '1px solid transparent',
+                                transition: 'all 0.1s'
+                            }}
+                            onClick={() => onSelect(shape.id)}
+                        >
+                            {shapes.some(s => s && s.parentId === shape.id) ? <IconChevronDown size={14} opacity={0.5} /> : <Box w={14} />}
+                            <IconBox size={16} color={activeShape?.id === shape.id ? '#818cf8' : '#4b5563'} />
+                            <Text size="xs" fw={activeShape?.id === shape.id ? 700 : 500} c={activeShape?.id === shape.id ? 'white' : 'gray.5'}>
+                                {shape.id.split('_')[0].toUpperCase()} <Text span size="10px" opacity={0.4}>#{shape.id.split('_')[1]}</Text>
                             </Text>
-                            {children.length > 0 && <Badge size="xs" variant="light" color="gray">{children.length}</Badge>}
                         </Group>
+                        <Box ml={16} style={{ borderLeft: '1px solid rgba(255,255,255,0.05)' }}>
+                            {renderTree(shape.id)}
+                        </Box>
                     </Box>
-                    {children.length > 0 && renderNavigatorTree(children, level + 1)}
-                </React.Fragment>
-            );
-        });
+                ))}
+            </Stack>
+        )
     }
 
-    const rootShapes = shapes.filter(s => s && !s.parentId);
+    // Подготавливаем текст для редактора (с оберткой)
+    const editorValue = activeShape ? `.${activeShape.id} {\n${activeShape.meta?.customCss || ''}\n}` : '';
 
     return (
-        <Box className="sidebar glass-dark premium-blur" style={{ 
-            width: 300, 
-            height: '100vh',
-            borderRight: '1px solid rgba(255,255,255,0.05)', 
-            display: 'flex', 
-            flexDirection: 'column',
-            zIndex: 100
-        }}>
+        <Box style={{ width: 320, height: '100%', borderRight: '1px solid rgba(255,255,255,0.1)', background: '#0f0f11', display: 'flex', flexDirection: 'column' }}>
             <Box p="md" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <Group justify="space-between">
                     <Group gap="xs">
@@ -86,23 +91,48 @@ export default function Sidebar({
                 </Group>
             </Box>
 
-            <ScrollArea scrollbarSize={4} style={{ flex: 1 }}>
-                <Stack gap="xl" p="md">
-                    <Stack gap="xs">
-                        <Group gap="xs" c="dimmed">
-                            <IconFiles size={16} />
-                            <Text size="xs" fw={700} lts="0.5px">NAVIGATOR</Text>
-                        </Group>
-                        <Box style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 4 }}>
-                            {shapes.length === 0 ? (
-                                <Text size="xs" c="dimmed" ta="center" py="xl">No blocks yet</Text>
-                            ) : (
-                                renderNavigatorTree(rootShapes)
-                            )}
-                        </Box>
-                    </Stack>
-                </Stack>
-            </ScrollArea>
+            <Box flex={1} style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <Group p="xs" px="md" justify="space-between" bg="rgba(255,255,255,0.02)">
+                    <Group gap={6}>
+                        <IconLayout2 size={14} color="gray" />
+                        <Text size="xs" fw={700} c="dimmed">NAVIGATOR</Text>
+                    </Group>
+                </Group>
+                <ScrollArea scrollbars="y" style={{ flex: 1 }} p="xs">
+                    {renderTree()}
+                </ScrollArea>
+            </Box>
+
+            {activeShape && (
+                <Box style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: '#141417' }}>
+                    <Group p="xs" px="md" bg="rgba(0,0,0,0.2)">
+                        <IconBracketsContain size={14} color="#f59e0b" />
+                        <Text size="xs" fw={700} c="white">ADVANCED CSS</Text>
+                    </Group>
+                    
+                    <Box style={{ height: 300 }}>
+                        <Editor
+                            height="100%"
+                            defaultLanguage="css"
+                            theme="vs-dark"
+                            value={editorValue}
+                            onChange={handleEditorChange}
+                            onMount={(editor) => { editorRef.current = editor; }}
+                            options={{
+                                minimap: { enabled: false },
+                                fontSize: 12,
+                                lineNumbers: 'on',
+                                padding: { top: 10, bottom: 10 },
+                                scrollBeyondLastLine: false,
+                                wordWrap: 'on',
+                                // Запрещаем удаление первой и последней строки через клавиатуру
+                                formatOnPaste: true,
+                                formatOnType: true
+                            }}
+                        />
+                    </Box>
+                </Box>
+            )}
         </Box>
     )
 }

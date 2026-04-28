@@ -16,7 +16,7 @@ const theme = createTheme({
 
 function App() {
     const [state, dispatch] = useReducer(layoutReducer, initialState);
-    const [selectedId, setSelectedId] = useState(null); // Может быть строкой "id1,id2,id3"
+    const [selectedId, setSelectedId] = useState(null);
     const [showCode, setShowCode] = useState(false);
 
     const pushToHistory = useCallback((newBlocks) => {
@@ -40,28 +40,27 @@ function App() {
         setSelectedId(id);
     }, [selectedId, state.blocks, pushToHistory]);
 
-    // Mass Deletion Logic
+    const updateBlockMeta = useCallback((id, key, value) => {
+        const newBlocks = state.blocks.map(b => b && b.id === id ? { ...b, meta: { ...b.meta, [key]: value } } : b);
+        pushToHistory(newBlocks);
+    }, [state.blocks, pushToHistory]);
+
     const deleteBlocks = useCallback((idsString) => {
         if (!idsString) return;
         const idsToDelete = idsString.split(',');
-        
         const deleteRecursive = (ids, currentBlocks) => {
             let res = currentBlocks;
             ids.forEach(id => {
-                const children = res.filter(b => b.parentId === id);
-                if (children.length > 0) {
-                    res = deleteRecursive(children.map(c => c.id), res);
-                }
-                res = res.filter(b => b.id !== id);
+                const children = res.filter(b => b && b.parentId === id);
+                if (children.length > 0) res = deleteRecursive(children.map(c => c.id), res);
+                res = res.filter(b => b && b.id !== id);
             });
             return res;
         };
-        
-        pushToHistory(prev => deleteRecursive(idsToDelete, prev));
+        pushToHistory(deleteRecursive(idsToDelete, state.blocks));
         setSelectedId(null);
-    }, [pushToHistory]);
+    }, [state.blocks, pushToHistory]);
 
-    // Keyboard Shortcuts
     useEffect(() => {
         const handleKeys = (e) => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
@@ -81,7 +80,6 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeys);
     }, [selectedId, deleteBlocks]);
 
-    // Находим первый выделенный блок для сайдбара
     const firstId = selectedId?.split(',')[0];
     const activeBlock = state.blocks.find(b => b && b.id === firstId);
 
@@ -93,6 +91,7 @@ function App() {
                     shapes={state.blocks}
                     onSelect={setSelectedId}
                     onAddBlock={addBlock}
+                    onUpdateMeta={updateBlockMeta}
                     onShowCode={() => setShowCode(true)}
                     onClear={() => {
                         if (confirm('Clear everything?')) {
@@ -110,11 +109,7 @@ function App() {
                     onAddBlock={addBlock}
                 />
 
-                <CodeModal 
-                    opened={showCode} 
-                    onClose={() => setShowCode(false)} 
-                    blocks={state.blocks} 
-                />
+                <CodeModal opened={showCode} onClose={() => setShowCode(false)} blocks={state.blocks} />
             </div>
         </MantineProvider>
     )
