@@ -1,180 +1,174 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Tldraw, createShapeId } from 'tldraw'
-import JSZip from 'jszip'
-
+import { useState, useCallback, useEffect, useReducer } from 'react'
 import Sidebar from './components/Sidebar'
-import HUD from './components/HUD'
-import CodeModal, { generateHTML, generateCSS } from './components/CodeModal'
-import PhotoLayer from './components/PhotoLayer'
+import CodeModal from './components/CodeModal'
 import MonacoEditor from './components/MonacoEditor'
-import SpacingOverlay from './components/SpacingOverlay'
+import Canvas from './canvas/Canvas'
 
-import { isInside, buildTree, calculateLayoutUpdates, initEngine } from './engine/layout'
-import { FlexShapeUtil } from './engine/FlexShapeUtil'
-import { FlexTool } from './engine/FlexTool'
-
-import 'tldraw/tldraw.css'
 import './App.css'
 
-const customShapeUtils = [FlexShapeUtil]
-const customTools = [FlexTool]
-const uiOverrides = {
-    tools(editor, tools) {
-        tools.flex = { id: 'flex', icon: 'frame', label: 'Flex Box', kbd: 'f', onSelect: () => editor.setCurrentTool('flex') }
-        return tools
-    },
+const initialState = {
+    blocks: [],
+    history: [[]],
+    index: 0
+};
+
+function reducer(state, action) {
+    switch (action.type) {
+        case 'PUSH_BLOCKS': {
+            const nextBlocks = typeof action.payload === 'function' 
+                ? action.payload(state.blocks) 
+                : action.payload;
+            
+            if (!Array.isArray(nextBlocks)) {
+                console.error('❌ Error: Attempted to push non-array to blocks', nextBlocks);
+                return state;
+            }
+
+            const newHistory = state.history.slice(0, state.index + 1);
+            newHistory.push(nextBlocks);
+            
+            return {
+                blocks: nextBlocks,
+                history: newHistory,
+                index: newHistory.length - 1
+            };
+        }
+        case 'UNDO': {
+            if (state.index <= 0) return state;
+            const newIndex = state.index - 1;
+            return {
+                ...state,
+                blocks: state.history[newIndex],
+                index: newIndex
+            };
+        }
+        case 'REDO': {
+            if (state.index >= state.history.length - 1) return state;
+            const newIndex = state.index + 1;
+            return {
+                ...state,
+                blocks: state.history[newIndex],
+                index: newIndex
+            };
+        }
+        default:
+            return state;
+    }
 }
 
 export default function App() {
-    const [editor, setEditor] = useState(null)
-    const [shapes, setShapes] = useState([])
+    const [state, dispatch] = useReducer(reducer, initialState);
     const [selectedId, setSelectedId] = useState(null)
-    const [camera, setCamera] = useState({ x: 0, y: 0, z: 1 })
     const [showCode, setShowCode] = useState(false)
-    const [showPhotos, setShowPhotos] = useState(true)
-    const [isGlobalLock, setIsGlobalLock] = useState(true)
-    const fileInputRef = useRef(null)
 
-    useEffect(() => { initEngine() }, [])
+    const pushToHistory = useCallback((payload) => dispatch({ type: 'PUSH_BLOCKS', payload }), []);
+    const undo = useCallback(() => dispatch({ type: 'UNDO' }), []);
+    const redo = useCallback(() => dispatch({ type: 'REDO' }), []);
+
+    const addBlock = useCallback((parentId = null) => {
+        const actualParentId = parentId || selectedId;
+        // Более надежный ID
+        const id = 'block_' + Math.random().toString(36).substr(2, 9);
+        
+        const newB = {
+            id,
+            parentId: actualParentId,
+            x: actualParentId ? 0 : 100 + (state.blocks.length * 20),
+            y: actualParentId ? 0 : 100 + (state.blocks.length * 20),
+            w: actualParentId ? 100 : 200,
+            h: actualParentId ? 100 : 200,
+            meta: {
+                direction: 'row',
+                justify: 'flex-start',
+                align: 'flex-start',
+                gap: 0,
+                padding: { top: 0, right: 0, bottom: 0, left: 0 },
+                margin: { top: 0, right: 0, bottom: 0, left: 0 }
+            }
+        }
+        pushToHistory([...state.blocks, newB]);
+        setSelectedId(id);
+    }, [selectedId, state.blocks, pushToHistory]);
+
+    const deleteBlock = useCallback(() => {
+        if (!selectedId) return;
+        const toDelete = new Set([selectedId]);
+        let size;
+        do {
+            size = toDelete.size;
+            state.blocks.forEach(b => {
+                if (b && b.parentId && toDelete.has(b.parentId)) {
+                    toDelete.add(b.id);
+                }
+            });
+        } while (toDelete.size > size);
+        
+        pushToHistory(state.blocks.filter(b => b && !toDelete.has(b.id)));
+        setSelectedId(null);
+    }, [selectedId, state.blocks, pushToHistory]);
 
     useEffect(() => {
-        if (!editor) return
-        let layoutTimeout = null
-
-        const sub = editor.store.listen((update) => {
-            const isLayoutUpdate = (Date.now() - (window.__lastLayoutEngineUpdate || 0)) < 50
-            
-            // Auto-reset meta on manual resize
-            if (!isLayoutUpdate && update.source === 'user' && update.changes?.updated) {
-                for (const record of Object.values(update.changes.updated)) {
-                    const [oldS, newS] = record
-                    if (oldS.type === 'geo' || oldS.type === 'flex') {
-                        const wCh = oldS.props.w !== newS.props.w, hCh = oldS.props.h !== newS.props.h
-                        if (wCh || hCh) {
-                            const metaUpdates = {}
-                            if (wCh) { metaUpdates.isFullW = false; metaUpdates.isGrow = false; metaUpdates.isAutoW = false }
-                            if (hCh) { metaUpdates.isFullH = false; metaUpdates.isAutoH = false }
-                            if (Object.keys(metaUpdates).length) {
-                                setTimeout(() => editor.updateShape({ id: newS.id, meta: { ...newS.meta, ...metaUpdates } }), 0)
-                            }
-                        }
-                    }
+        const handleKeys = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+                e.preventDefault()
+                if (e.shiftKey) redo()
+                else undo()
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && !e.target.isContentEditable) {
+                    e.preventDefault();
+                    deleteBlock();
                 }
             }
-
-            let needsLayout = false
-            if (update.changes) {
-                if (Object.keys(update.changes.added).length || Object.keys(update.changes.removed).length) needsLayout = true
-                else if (update.changes.updated) {
-                    for (const [oldS, newS] of Object.values(update.changes.updated)) {
-                        if (oldS.x !== newS.x || oldS.y !== newS.y || JSON.stringify(oldS.props) !== JSON.stringify(newS.props) || JSON.stringify(oldS.meta) !== JSON.stringify(newS.meta)) {
-                            needsLayout = true; break
-                        }
-                    }
-                }
-            }
-
-            const currentShapes = Array.from(editor.getCurrentPageShapes())
-            setShapes(currentShapes)
-            const sel = editor.getSelectedShapeIds()
-            setSelectedId(sel.length ? sel[0] : null)
-            setCamera({ ...editor.getCamera() })
-
-            if (needsLayout && !isLayoutUpdate) {
-                clearTimeout(layoutTimeout)
-                const wasAdded = update.changes?.added && Object.keys(update.changes.added).length > 0
-                if (wasAdded) window.__lastLayoutEngineUpdate = 0
-
-                layoutTimeout = setTimeout(() => {
-                    if (!wasAdded && (editor.inputs.isPointing || editor.getInstanceState().isDragging || editor.getInstanceState().isResizing)) return
-                    const shapesForLayout = Array.from(editor.getCurrentPageShapes())
-                    const updates = calculateLayoutUpdates(buildTree(shapesForLayout))
-                    
-                    if (updates.length > 0) {
-                        window.__lastLayoutEngineUpdate = Date.now()
-                        editor.run(() => editor.updateShapes(updates), { history: 'ignore' })
-                    }
-                }, wasAdded ? 50 : 100)
-            }
-        })
-        return () => { sub(); clearTimeout(layoutTimeout) }
-    }, [editor])
-
-    const treeNodes = useMemo(() => buildTree(shapes), [shapes])
-    const activeShape = useMemo(() => shapes.find(s => s.id === selectedId), [shapes, selectedId])
-    const hasChildren = useMemo(() => activeShape ? shapes.some(s => s.id !== activeShape.id && isInside(s, activeShape)) : false, [activeShape, shapes])
-
-    const runAtomicUpdate = useCallback((metaOverrides = {}, forceId = null) => {
-        if (!editor) return
-        const ids = forceId ? [forceId] : (editor.getSelectedShapeIds().length ? editor.getSelectedShapeIds() : (selectedId ? [selectedId] : []))
-        const allItems = Array.from(editor.getCurrentPageShapes())
-        const raw = allItems.map(s => ids.includes(s.id) ? { ...s, meta: { ...s.meta, ...metaOverrides } } : s)
-        const updates = calculateLayoutUpdates(buildTree(raw))
-        
-        ids.forEach(id => {
-            if (!updates.some(u => u.id === id)) updates.push({ id, meta: { ...editor.getShape(id).meta, ...metaOverrides } })
-        })
-
-        const finalUpdates = updates.map(u => ids.includes(u.id) ? { ...u, meta: { ...editor.getShape(u.id).meta, ...metaOverrides } } : u)
-        if (finalUpdates.length) {
-            window.__lastLayoutEngineUpdate = Date.now()
-            editor.updateShapes(finalUpdates)
         }
-    }, [editor, selectedId])
+        window.addEventListener('keydown', handleKeys)
+        return () => window.removeEventListener('keydown', handleKeys)
+    }, [undo, redo, deleteBlock])
 
-    const toggleRule = (key, value) => {
-        if (!editor || !selectedId) return
-        const s = editor.getShape(selectedId); if (!s) return
-        runAtomicUpdate({ [key]: s.meta?.[key] === value ? null : value }, selectedId)
-    }
-
-    const toggleFill = () => {
-        if (!editor || !selectedId) return
-        const s = editor.getShape(selectedId); if (!s) return
-        if (!s.meta?.isGrow) runAtomicUpdate({ isGrow: true, baseW: s.props.w, baseH: s.props.h }, selectedId)
-        else editor.updateShape({ id: selectedId, props: { w: s.meta.baseW || s.props.w, h: s.meta.baseH || s.props.h }, meta: { ...s.meta, isGrow: null } })
-    }
-
-    const handleImage = (e) => {
-        const file = e.target.files?.[0]; if (!file || !editor) return
-        const reader = new FileReader(); reader.onload = (f) => {
-            const img = new Image(); img.onload = () => {
-                const canvas = document.createElement('canvas'); const max = 1600; let w = img.width, h = img.height
-                if (w > max) { h = (max/w)*h; w = max }; canvas.width = w; canvas.height = h
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h); const b64 = canvas.toDataURL('image/jpeg', 0.75)
-                if (activeShape) runAtomicUpdate({ bgImage: b64 }, activeShape.id)
-                else {
-                    const sid = createShapeId(); const center = editor.getViewportPageBounds().center
-                    editor.createShape({ id: sid, type: 'geo', x: center.x - w/2, y: center.y - h/2, props: { w, h }, meta: { bgImage: b64 }, isLocked: isGlobalLock })
-                    editor.sendToBack([sid])
-                }
-            }; img.src = f.target.result
-        }; reader.readAsDataURL(file)
-    }
-
-    const exportToZip = async () => {
-        const zip = new JSZip()
-        zip.file("index.html", `<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="style.css"></head><body>\n${generateHTML(treeNodes, "  ")}</body></html>`)
-        zip.file("style.css", `body { margin: 0; background: #f8f9fa; font-family: sans-serif; }\n\n${generateCSS(treeNodes)}`)
-        const blob = await zip.generateAsync({type: "blob"}); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "layout.zip"; link.click()
+    // Максимально безопасный поиск активного блока
+    let activeBlock = null;
+    try {
+        if (selectedId && Array.isArray(state.blocks)) {
+            activeBlock = state.blocks.find(b => b && b.id === selectedId) || null;
+        }
+    } catch (err) {
+        console.error('❌ Critical error during block search:', err);
     }
 
     return (
-        <div className="architect-app" onMouseDown={(e) => e.target.closest('.sidebar, .shape-context-hud') && e.stopPropagation()}>
-            <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleImage} />
-            <Sidebar activeShape={activeShape} shapes={shapes} showPhotos={showPhotos} setShowPhotos={setShowPhotos} isGlobalLock={isGlobalLock} 
-                     toggleGlobalLock={() => { setIsGlobalLock(!isGlobalLock); editor.updateShapes(shapes.filter(s => s.meta?.bgImage).map(s => ({ id: s.id, isLocked: !isGlobalLock }))) }}
-                     onAddImage={() => fileInputRef.current.click()} onShowCode={() => setShowCode(true)} onExport={exportToZip} onMetaUpdate={runAtomicUpdate} 
-                     onDeleteShape={(id) => editor.deleteShapes([id])} cssPreview={generateCSS(treeNodes)} MonacoComponent={MonacoEditor} />
+        <div className="architect-app">
+            <Sidebar
+                activeShape={activeBlock ? { id: activeBlock.id, meta: activeBlock.meta || {} } : null}
+                shapes={state.blocks || []}
+                onShowCode={() => setShowCode(true)}
+                onExport={() => {}}
+                onSelect={(id) => setSelectedId(id)}
+                onAddBlock={addBlock}
+                onMetaUpdate={(metaUpdate) => {
+                    if (!selectedId) return;
+                    const next = state.blocks.map(b => 
+                        b.id === selectedId ? { ...b, meta: { ...(b.meta || {}), ...metaUpdate } } : b
+                    );
+                    pushToHistory(next);
+                }}
+                onCSSUpdate={() => {}}
+                MonacoComponent={MonacoEditor}
+            />
 
             <main className="canvas-wrapper">
-                <style>{`.tl-geo { fill: transparent !important; stroke: rgba(255,255,255,0.1) !important; } ${activeShape ? `[data-shape-id="${activeShape.id}"] { outline: 2px solid #3b82f6 !important; }` : ''}`}</style>
-                <PhotoLayer shapes={shapes} camera={camera} showPhotos={showPhotos} />
-                <SpacingOverlay activeShape={activeShape} camera={camera} onUpdate={runAtomicUpdate} editor={editor} />
-                <Tldraw gridMode persistenceKey="flex-stable-v2000" shapeUtils={customShapeUtils} tools={customTools} overrides={uiOverrides} onMount={setEditor} />
-                <HUD activeShape={activeShape} editor={editor} camera={camera} hasChildren={hasChildren} onUpdate={runAtomicUpdate} onToggleRule={toggleRule} onToggleFill={toggleFill} />
+                <Canvas
+                    blocks={state.blocks || []}
+                    setBlocks={pushToHistory}
+                    selectedId={selectedId}
+                    onSelect={(id) => setSelectedId(id)}
+                />
             </main>
-            <CodeModal show={showCode} onClose={() => setShowCode(false)} tree={treeNodes} />
+
+            <CodeModal
+                opened={showCode}
+                onClose={() => setShowCode(false)}
+                blocks={state.blocks || []}
+            />
         </div>
     )
 }

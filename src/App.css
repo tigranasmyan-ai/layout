@@ -1,12 +1,17 @@
 :root {
-  --bg-dark: #0f1115;
+  --bg-dark: #0a0a0c;
+  --accent: #4f46e5;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body, html, #root { 
   margin: 0; 
   padding: 0; 
-  height: 100%; 
-  width: 100%; 
+  height: 100vh; 
+  width: 100vw; 
   overflow: hidden; 
   background: var(--bg-dark); 
   font-family: 'Inter', -apple-system, sans-serif; 
@@ -17,14 +22,41 @@ body, html, #root {
   height: 100vh; 
   width: 100vw; 
   background: var(--bg-dark); 
-  position: relative; 
 }
 
 .sidebar {
-  width: 380px;
-  background: rgba(20, 22, 28, 0.9);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 1000;
+  width: 320px;
+  height: 100vh;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-wrapper { 
+  flex: 1; 
+  height: 100vh;
+  position: relative; 
+  overflow: hidden; 
+  background: #000; 
+  display: flex;
+}
+
+.canvas-viewport {
+  width: 100%;
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.canvas-work-area {
+  box-shadow: 0 0 100px rgba(0,0,0,0.5);
+}
+
+/* Glassmorphism helpers */
+.glass-dark { 
+  background: rgba(15, 17, 21, 0.95); 
+  backdrop-filter: blur(10px); 
+  border: 1px solid rgba(255, 255, 255, 0.05); 
 }
 
 .premium-blur { 
@@ -32,73 +64,41 @@ body, html, #root {
   -webkit-backdrop-filter: blur(20px); 
 }
 
-.canvas-wrapper { 
-  flex: 1; 
-  position: relative; 
-  overflow: hidden; 
-  background: #000; 
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.glass-dark { 
-  background: rgba(15, 17, 21, 0.95); 
-  backdrop-filter: blur(10px); 
-  border: 1px solid rgba(255, 255, 255, 0.1); 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
 }
 
-.floating-island {
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* Scrub Input Styles */
-.scrub-input {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border-radius: 4px;
+::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+}
+
+::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.05);
-  cursor: ew-resize;
-  user-select: none;
-  transition: background 0.2s;
+  border-radius: 10px;
 }
 
-.scrub-input:hover {
+::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.1);
 }
 
-.scrub-label {
-  font-size: 10px;
-  font-weight: 800;
-  color: #3b82f6;
-  opacity: 0.8;
+/* Selecto Selection Area */
+.selecto-selection {
+  background: rgba(79, 70, 229, 0.1) !important;
+  border: 1.5px solid #4f46e5 !important;
+  z-index: 10000 !important;
 }
-
-.scrub-value {
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  min-width: 24px;
-  text-align: center;
+.viewer {
+  height: 100%;
 }
-
-.scrub-value-input {
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  width: 32px;
-  outline: none;
-  text-align: center;
-}
-
-/* Tldraw Overrides */
-.tl-geo { 
-  fill: transparent !important; 
-  stroke: rgba(255,255,255,0.05) !important; 
-}
-
-.custom-scroll::-webkit-scrollbar { width: 4px; }
-.custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }

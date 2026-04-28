@@ -8,7 +8,8 @@ import {
   Paper,
   Box,
   Text,
-  Group
+  Group,
+  ScrollArea
 } from '@mantine/core'
 import { 
   IconCopy, 
@@ -16,31 +17,65 @@ import {
   IconBrandHtml5, 
   IconBrandCss3 
 } from '@tabler/icons-react'
-import { ScrollArea } from '@mantine/core'
-import { buildCSSObject, serializeCSS } from '../engine/css-generator'
+
+// Вспомогательная функция для сборки дерева
+const blocksToTree = (items) => {
+    const map = {}
+    items.forEach(b => map[b.id] = { ...b, children: [] })
+    const roots = []
+    items.forEach(b => {
+        if (b.parentId && map[b.parentId]) map[b.parentId].children.push(map[b.id])
+        else roots.push(map[b.id])
+    })
+    return roots
+}
 
 export const generateHTML = (nodes, indent = "") => {
     return nodes.map(n => {
-        const name = n.id.replace('shape:', 'box-');
-        const tag = n.meta?.tag || 'div';
+        const name = `box-${n.id}`;
+        const tag = 'div';
         const children = n.children?.length ? `\n${generateHTML(n.children, indent + "  ")}${indent}` : "";
         return `${indent}<${tag} class="${name}">${children}</${tag}>`;
     }).join("\n");
 };
 
 export const generateCSS = (nodes) => {
-    const cssObj = buildCSSObject(nodes);
-    return serializeCSS(cssObj);
+    let out = '';
+    const traverse = (items) => {
+        items.forEach(n => {
+            const m = n.meta || {};
+            out += `.box-${n.id} {\n`;
+            out += `  display: flex;\n`;
+            out += `  flex-direction: ${m.direction || 'row'};\n`;
+            out += `  justify-content: ${m.justify || 'flex-start'};\n`;
+            out += `  align-items: ${m.align || 'flex-start'};\n`;
+            out += `  gap: ${m.gap || 0}px;\n`;
+            out += `  padding: ${m.padding || 0}px;\n`;
+            
+            // Пользовательский CSS если есть
+            if (n.css) out += `  ${n.css}\n`;
+            
+            out += `}\n\n`;
+            
+            if (n.children?.length) traverse(n.children);
+        });
+    };
+    traverse(nodes);
+    return out;
 };
 
-export default function CodeModal({ show, onClose, tree }) {
+export default function CodeModal({ opened, onClose, blocks = [] }) {
     const [activeTab, setActiveTab] = useState('html')
+    
+    // Безопасно собираем дерево
+    const tree = blocksToTree(blocks);
+    
     const htmlCode = generateHTML(tree);
     const cssCode = generateCSS(tree);
 
     return (
         <Modal 
-            opened={show} 
+            opened={opened} 
             onClose={onClose} 
             title={<Text fw={700}>Project Source</Text>}
             size="xl"
@@ -76,7 +111,7 @@ export default function CodeModal({ show, onClose, tree }) {
             </Tabs>
             
             <Group justify="center" mt="md">
-                <Text size="xs" c="dimmed">Source code is generated based on your live Yoga layout.</Text>
+                <Text size="xs" c="dimmed">Source code is generated based on your custom flex styles.</Text>
             </Group>
         </Modal>
     );
