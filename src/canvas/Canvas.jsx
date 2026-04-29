@@ -10,6 +10,7 @@ import { COLORS } from '../constants'
 // Sub-components
 import EmptyState from './components/EmptyState'
 import BlueprintImg from './components/BlueprintImg'
+import FloatingToolbar from './FloatingToolbar'
 
 export default function Canvas({ 
     blocks, 
@@ -23,13 +24,14 @@ export default function Canvas({
 }) {
     const viewerRef = useRef(null)
     const moveableRef = useRef(null)
+    const viewportRef = useRef(null)
     const [targets, setTargets] = useState([])
     const [zoom, setZoom] = useState(1)
     const [isTransforming, setIsTransforming] = useState(false)
 
     // Хуки для интерактивности
-    const { isPanning, setEditingSpace } = useCanvasInteraction(zoom, setZoom, setBlocksSilent);
-    const { startDraggingSpace } = useSpacingLogic(zoom, setBlocksSilent);
+    const { isPanning, editingSpace, setEditingSpace } = useCanvasInteraction(zoom, setZoom, setBlocksSilent);
+    const { startDraggingSpace, draggingType } = useSpacingLogic(zoom, setBlocksSilent, setBlocks, blocks);
     const { handleDrag, handleDragEnd, handleResize, handleResizeEnd } = useMoveableHandlers({ 
         blocks, setBlocks, setBlocksSilent, onUpdateBlueprint, setIsTransforming 
     });
@@ -70,8 +72,9 @@ export default function Canvas({
     };
 
     const handleSize = (id, key, value) => {
+        if (!id) return;
         const val = (String(value).includes('%')) ? value : (parseInt(value) || 0);
-        setBlocks(prev => prev.map(b => b.id === id ? { ...b, [key]: val } : b));
+        setBlocks(prev => prev.map(b => (b && b.id === id) ? { ...b, [key]: val } : b));
     };
 
     const handleFill = (id, side) => {
@@ -125,15 +128,14 @@ export default function Canvas({
             }}
         >
             <style>{`
-                .spacing-zone { transition: opacity 0.1s, background 0.1s; opacity: 0.3; pointer-events: auto; cursor: pointer; }
-                .spacing-zone:hover { opacity: 1; background: rgba(255,255,255,0.1) !important; }
-                .margin-zone { border: 1px dashed rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.05); }
-                .padding-zone { border: 1px dashed rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.05); }
-                .viewer.panning { cursor: grab !important; }
-                .viewer.panning:active { cursor: grabbing !important; }
+                .spacing-zone { transition: none; opacity: 0.5; pointer-events: auto; cursor: pointer; z-index: 1000 !important; }
+                .spacing-zone:hover { opacity: 1; }
+                .spacing-zone:hover .spacing-handle { opacity: 1 !important; }
+                .margin-zone { border: 1px solid rgba(245, 158, 11, 0.9); background: rgba(245, 158, 11, 0.3); }
+                .padding-zone { border: 1px solid rgba(168, 85, 247, 0.9); background: rgba(168, 85, 247, 0.3); }
             `}</style>
             
-            {blocks.length === 0 && !blueprint.url && (
+            {blocks.length === 0 && (
                 <EmptyState onAdd={() => onAddBlock(null)} />
             )}
 
@@ -144,7 +146,7 @@ export default function Canvas({
                 zoom={zoom} onPinch={e => setZoom(e.zoom)}
                 style={{ width: '100%', height: '100%', background: '#000' }}
             >
-                <div className="viewport" style={{ 
+                <div className="viewport" ref={viewportRef} style={{ 
                     width: '10000px', height: '10000px', position: 'relative',
                     backgroundImage: `radial-gradient(rgba(255,255,255,0.05) 1px, transparent 0)`,
                     backgroundSize: '40px 40px', backgroundPosition: '-1px -1px'
@@ -156,6 +158,15 @@ export default function Canvas({
                             key={block.id} block={block} blocks={blocks} blocksByParent={blocksByParent}
                             selectedIds={selectedIds} isPanning={isPanning} zoom={zoom}
                             isTransforming={isTransforming}
+                            draggingType={draggingType}
+                            editingSpace={editingSpace}
+                            onSaveEdit={(val) => {
+                                updateMeta(editingSpace.id, editingSpace.type, {
+                                    ...(blocks.find(b => b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
+                                    [editingSpace.side]: isNaN(parseInt(val)) ? val : parseInt(val)
+                                });
+                                setEditingSpace(null);
+                            }}
                             onSelect={onSelect} onUpdateMeta={updateMeta} onUpdateSize={handleSize}
                             onAddBlock={onAddBlock}
                             onStartDrag={startDraggingSpace}
@@ -164,15 +175,40 @@ export default function Canvas({
                             onFill={handleFill}
                         />
                     ))}
+
+                    {/* Плавающая панель (теперь на уровне канваса для правильного z-index) */}
+                    {selectedIds.length === 1 && !isPanning && targets[0] && viewportRef.current && (
+                        <div style={{
+                            position: 'absolute',
+                            left: (targets[0].getBoundingClientRect().left - viewportRef.current.getBoundingClientRect().left) / zoom,
+                            top: (targets[0].getBoundingClientRect().top - viewportRef.current.getBoundingClientRect().top) / zoom,
+                            width: targets[0].offsetWidth,
+                            pointerEvents: 'none', 
+                            zIndex: 999999,
+                            display: 'flex',
+                            justifyContent: 'center'
+                        }}>
+                            <div style={{ pointerEvents: 'auto' }}>
+                                <FloatingToolbar 
+                                    block={blocks.find(b => b.id === selectedIds[0])} 
+                                    zoom={zoom} 
+                                    hasChildren={(blocksByParent[selectedIds[0]] || []).length > 0}
+                                    hasContent={(blocksByParent[selectedIds[0]] || []).length > 0 || !!blocks.find(b => b.id === selectedIds[0]).meta?.text}
+                                    onUpdateMeta={(key, val) => updateMeta(selectedIds[0], key, val)}
+                                    onUpdateSize={(key, val) => handleSize(selectedIds[0], key, val)}
+                                    onAddBlock={onAddBlock}
+                                />
+                            </div>
+                        </div>
+                    )}
                     
                     <Moveable 
                         ref={moveableRef} target={targets} zoom={1 / zoom} 
-                        draggable={targets.length > 0 && targets.every(t => t.id === 'blueprint-img' || !blocks.find(x => x?.id === t.getAttribute('data-id'))?.parentId)} 
                         resizable={targets.length === 1}
+                        useResizeObserver={true}
+                        edgeDraggable={true}
+                        renderDirections={[]}
                         keepRatio={targets.length === 1 && targets[0]?.id === 'blueprint-img'}
-                        onDragStart={() => setIsTransforming(true)} 
-                        onDrag={handleDrag} 
-                        onDragEnd={handleDragEnd} 
                         onResizeStart={() => setIsTransforming(true)} 
                         onResize={handleResize} 
                         onResizeEnd={handleResizeEnd} 
@@ -184,8 +220,45 @@ export default function Canvas({
                 <div style={{ background: 'rgba(30,30,35,0.8)', padding: '6px 12px', borderRadius: 20, color: 'white', fontSize: 12, fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>{Math.round(zoom * 100)}%</div>
                 <button onClick={() => setZoom(1)} style={btnStyle}>Reset</button>
             </div>
+
+            {editingSpace && (
+                <EditModal 
+                    data={editingSpace} 
+                    onClose={() => setEditingSpace(null)} 
+                    onSave={(val) => {
+                        updateMeta(editingSpace.id, editingSpace.type, {
+                            ...(blocks.find(b => b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
+                            [editingSpace.side]: isNaN(parseInt(val)) ? val : parseInt(val)
+                        });
+                        setEditingSpace(null);
+                    }}
+                />
+            )}
         </div>
     )
 }
+
+const EditModal = ({ data, onClose, onSave }) => {
+    const [val, setVal] = useState('');
+    return (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000000, backdropFilter: 'blur(5px)' }} onClick={onClose}>
+            <div style={{ background: '#1a1a1e', padding: 20, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', minWidth: 200, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 11, fontWeight: 900, color: 'dimmed', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Edit {data.type} {data.side}</div>
+                <input 
+                    autoFocus 
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '8px 12px', color: 'white', fontSize: 16, fontWeight: 700, outline: 'none' }}
+                    placeholder="e.g. 20 or auto"
+                    value={val}
+                    onChange={e => setVal(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && onSave(val)}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                    <button onClick={onClose} style={{ flex: 1, padding: '8px', borderRadius: 6, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={() => onSave(val)} style={{ flex: 1, padding: '8px', borderRadius: 6, background: COLORS.primary, border: 'none', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Save</button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const btnStyle = { background: COLORS.primary, border: 'none', color: 'white', padding: '5px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 700 }

@@ -20,12 +20,16 @@ export function useMoveableHandlers({ blocks, setBlocks, setBlocksSilent, onUpda
 
     const handleDragEnd = useCallback((e) => {
         setIsTransforming(false);
+        if (!e.lastEvent) return; // Предотвращаем краш, если движения не было
+        
         const id = e.target.id === 'blueprint-img' ? 'blueprint-img' : e.target.getAttribute('data-id');
         if (id !== 'blueprint-img' && id) {
-            // Фиксация в истории при окончании перетаскивания
-            setBlocks(prev => prev.map(b => b.id === id ? { ...b, x: e.lastEvent.left, y: e.lastEvent.top } : b));
+            const block = blocks.find(b => b.id === id);
+            if (block && !block.parentId) {
+                setBlocks(prev => prev.map(b => b.id === id ? { ...b, x: e.lastEvent.left, y: e.lastEvent.top } : b));
+            }
         }
-    }, [setBlocks, setIsTransforming]);
+    }, [blocks, setBlocks, setIsTransforming]);
 
     const handleResize = useCallback((e) => {
         const id = e.target.id === 'blueprint-img' ? 'blueprint-img' : e.target.getAttribute('data-id');
@@ -67,6 +71,8 @@ export function useMoveableHandlers({ blocks, setBlocks, setBlocksSilent, onUpda
 
     const handleResizeEnd = useCallback((e) => {
         setIsTransforming(false);
+        if (!e.lastEvent) return; // Предотвращаем краш
+        
         const id = e.target.getAttribute('data-id');
         if (id) {
             const block = blocks.find(b => b.id === id);

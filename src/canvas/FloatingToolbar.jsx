@@ -24,10 +24,8 @@ export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, 
 
     return (
         <div style={{
-            position: 'absolute',
-            top: 0,
-            left: '50%',
-            transform: `translate(-50%, calc(-100% - 45px)) scale(${invZoom})`,
+            position: 'relative',
+            transform: `translateY(calc(-100% - 45px)) scale(${invZoom})`,
             transformOrigin: 'bottom center',
             background: 'rgba(20, 20, 25, 0.95)',
             backdropFilter: 'blur(12px)',
@@ -111,12 +109,51 @@ export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, 
 
 function SizeInput({ label, value, onChange }) {
     const [localValue, setLocalValue] = useState(value);
+    
     useEffect(() => { setLocalValue(value); }, [value]);
 
+    const stopPropagation = (e) => e.stopPropagation();
+
     return (
-        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 4, padding: '2px 4px', border: '1px solid rgba(255,255,255,0.1)' }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            background: 'rgba(255,255,255,0.05)', 
+            borderRadius: 4, 
+            padding: '2px 4px', 
+            border: '1px solid rgba(255,255,255,0.1)' 
+        }} 
+        onMouseDown={stopPropagation}
+        onPointerDown={stopPropagation}
+        onClick={stopPropagation}
+        >
             <span style={{ fontSize: 9, fontWeight: 900, color: '#4f46e5', marginRight: 4, opacity: 0.8 }}>{label}</span>
-            <input type="text" value={localValue} onChange={(e) => setLocalValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') onChange(e.target.value); }} onBlur={(e) => onChange(e.target.value)} style={{ width: 35, background: 'transparent', border: 'none', color: 'white', fontSize: 10, fontWeight: 700, textAlign: 'center', outline: 'none', padding: 0 }} />
+            <input 
+                type="text" 
+                value={localValue} 
+                onChange={(e) => setLocalValue(e.target.value)}
+                onKeyDown={(e) => { 
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                        onChange(localValue);
+                        e.currentTarget.blur();
+                    }
+                }} 
+                onKeyUp={stopPropagation}
+                onKeyPress={stopPropagation}
+                onBlur={() => onChange(localValue)} 
+                style={{ 
+                    width: 40, 
+                    background: 'transparent', 
+                    border: 'none', 
+                    color: 'white', 
+                    fontSize: 10, 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    outline: 'none', 
+                    padding: 0 
+                }} 
+            />
         </div>
     );
 }
@@ -137,5 +174,3 @@ function ToolbarButton({ children, active, onClick, highlight = '#4f46e5', title
         </div>
     );
 }
-
-

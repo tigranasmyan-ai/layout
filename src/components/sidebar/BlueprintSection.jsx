@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Group, Text, Button, ActionIcon, Stack, Slider } from '@mantine/core';
 import { IconPhoto, IconTrash, IconPlus, IconLayout2 } from '@tabler/icons-react';
 
-export default function BlueprintSection({ blueprint, onUpdateBlueprint, onOpenAssets }) {
+export default function BlueprintSection({ blueprint, onUpdate, onOpenAssets }) {
     return (
         <Box p="md" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <Group justify="space-between" mb="xs">
@@ -11,7 +11,7 @@ export default function BlueprintSection({ blueprint, onUpdateBlueprint, onOpenA
                     <Text size="xs" fw={700} c="dimmed">BLUEPRINT (MOCKUP)</Text>
                 </Group>
                 {blueprint.url && (
-                    <ActionIcon size="xs" color="red" variant="subtle" onClick={() => onUpdateBlueprint({ url: null })}>
+                    <ActionIcon size="xs" color="red" variant="subtle" onClick={() => onUpdate({ url: null })}>
                         <IconTrash size={12} />
                     </ActionIcon>
                 )}
@@ -48,7 +48,7 @@ export default function BlueprintSection({ blueprint, onUpdateBlueprint, onOpenA
                         size="xs"
                         min={0} max={1} step={0.01}
                         value={blueprint.opacity}
-                        onChange={(val) => onUpdateBlueprint({ opacity: val })}
+                        onChange={(val) => onUpdate({ opacity: val })}
                     />
                 </Stack>
             )}
