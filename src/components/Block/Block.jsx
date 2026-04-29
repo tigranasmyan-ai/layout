@@ -28,6 +28,7 @@ const Block = React.memo(({
 
     return (
         <div 
+            className={classes.block}
             style={blockStyle} 
             onClick={(e) => { e.stopPropagation(); onSelect(block.id); }}
             data-id={block.id}
@@ -37,9 +38,9 @@ const Block = React.memo(({
                 <div 
                     className={classes.textContent}
                     style={{ 
-                        color: m.color || 'white',
-                        fontSize: m.fontSize || 'inherit',
-                        fontWeight: m.fontWeight || 'normal'
+                        '--text-color': m.color || 'white',
+                        '--font-size': m.fontSize || 'inherit',
+                        '--font-weight': m.fontWeight || 'normal'
                     }}
                 >
                     {m.text}
@@ -76,7 +77,7 @@ const Block = React.memo(({
     
     return prev.block === next.block && 
            prev.blocksByParent[prev.block.id] === next.blocksByParent[next.block.id] &&
-           isSelectedPrev === isSelectedNext &&
+           prev.selectedIds === next.selectedIds &&
            prev.zoom === next.zoom &&
            prev.isPanning === next.isPanning &&
            prev.isTransforming === next.isTransforming;

@@ -1,4 +1,43 @@
+.block {
+    box-sizing: border-box;
+    overflow: visible;
+    display: flex;
+    
+    position: var(--pos);
+    left: var(--left);
+    top: var(--top);
+    width: var(--width);
+    height: var(--height);
+    z-index: var(--z-index);
+    
+    flex-direction: var(--flex-dir);
+    justify-content: var(--justify);
+    align-items: var(--align);
+    flex-wrap: var(--flex-wrap);
+    gap: var(--gap);
+    padding: var(--padding);
+    
+    flex-grow: var(--flex-grow);
+    flex-shrink: 0;
+    flex-basis: var(--flex-basis);
+    margin-top: var(--m-top);
+    margin-right: var(--m-right);
+    margin-bottom: var(--m-bottom);
+    margin-left: var(--m-left);
+    
+    background-color: var(--bg-color);
+    background-image: var(--bg-image);
+    background-size: var(--bg-size);
+    background-position: var(--bg-position);
+    border-radius: var(--border-radius);
+    border: var(--border);
+    transition: var(--transition);
+}
+
 .textContent {
     width: 100%;
     pointer-events: none;
+    color: var(--text-color, white);
+    font-size: var(--font-size, inherit);
+    font-weight: var(--font-weight, normal);
 }

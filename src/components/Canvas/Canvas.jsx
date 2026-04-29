@@ -4,7 +4,10 @@ import InfiniteViewer from "react-infinite-viewer"
 import Block from '@components/Block'
 import classes from './Canvas.module.css'
 import { useCanvasInteraction, useSpacingLogic, useMoveableHandlers } from '@hooks'
-import {COLORS} from '@constants'
+import EmptyState from '@components/EmptyState'
+import BlueprintImg from '@components/BlueprintImg'
+import FloatingToolbar from '@components/FloatingToolbar'
+import { BlockProvider } from '@components/BlockContext'
 
 // Custom Ability for Spacing
 const SpacingAbility = {
@@ -13,12 +16,6 @@ const SpacingAbility = {
         return null;
     }
 };
-
-// Sub-components
-import EmptyState from '@components/EmptyState'
-import BlueprintImg from '@components/BlueprintImg'
-import FloatingToolbar from '@components/FloatingToolbar'
-import { BlockProvider } from '@components/BlockContext'
 
 export default function Canvas({ 
     blocks, setBlocks, selectedId, onSelect, onAddBlock, blueprint, onUpdateBlueprint 
@@ -69,7 +66,7 @@ export default function Canvas({
 
     useEffect(() => {
         if (moveableRef.current) moveableRef.current.updateRect();
-    }, [blocks, zoom]);
+    }, [blocks, zoom, targets]);
 
     const updateMeta = (id, key, value) => {
         requestAnimationFrame(() => {
@@ -264,18 +261,3 @@ const EditModal = ({data, onClose, onSave}) => {
         </div>
     );
 };
-div>
-        </div>
-    );
-};
-
-const btnStyle = {
-    background: COLORS.primary,
-    border: 'none',
-    color: 'white',
-    padding: '5px 10px',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontSize: 12,
-    fontWeight: 700
-}
