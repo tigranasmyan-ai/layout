@@ -211,13 +211,15 @@ export default function Canvas({
                         </div>
                     )}
                     
-                    <Moveable 
-                        ref={moveableRef} target={targets} zoom={1 / zoom} 
-                        resizable={targets.length === 1}
-                        useResizeObserver={true}
-                        edgeDraggable={true}
-                        renderDirections={["n", "nw", "ne", "s", "sw", "se", "w", "e"]}
-                        keepRatio={targets.length === 1 && targets[0]?.id === 'blueprint-img'}
+                        <Moveable 
+                            ref={moveableRef} target={targets} zoom={1 / zoom} 
+                            resizable={targets.length === 1}
+                            useResizeObserver={true}
+                            edgeDraggable={true}
+                            renderDirections={["n", "nw", "ne", "s", "sw", "se", "w", "e"]}
+                            abilities={[SpacingAbility]}
+                            spacing={true}
+                            keepRatio={targets.length === 1 && targets[0]?.id === 'blueprint-img'}
                         onResizeStart={() => setIsTransforming(true)} 
                         onResize={handleResize} 
                         onResizeEnd={handleResizeEnd} 

@@ -34,7 +34,7 @@ export const useSpacingLogic = (zoom, setBlocksSilent, setBlocks, blocks) => {
             const delta = isReverse ? -deltaRaw : deltaRaw;
             
             const baseVal = (startValue === 'auto' || startValue === undefined) ? 0 : parseInt(startValue);
-            const newValue = Math.max(0, baseVal + Math.round(delta / zoom));
+            const newValue = Math.max(0, Math.round(baseVal + delta / zoom));
             
             setBlocksSilentRef.current(prev => {
                 const next = prev.map(b => b && b.id === id ? {
