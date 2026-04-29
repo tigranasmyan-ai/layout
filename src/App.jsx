@@ -4,18 +4,19 @@ import { useHotkeys } from '@mantine/hooks'
 import { useStore } from 'zustand'
 import '@mantine/core/styles.css'
 import './App.css'
+import classes from './App.module.css'
 
 // Components
-import Sidebar from './components/Sidebar'
-import Canvas from './canvas/Canvas'
-import CodeModal from './components/CodeModal'
-import AssetManager from './components/AssetManager'
-import FontManager from './components/FontManager'
-import ColorManager from './components/ColorManager'
+import Sidebar from '@components/Sidebar'
+import Canvas from '@components/Canvas'
+import CodeModal from '@components/CodeModal'
+import AssetManager from '@components/AssetManager'
+import FontManager from '@components/FontManager'
+import ColorManager from '@components/ColorManager'
 
 // Store & Constants
-import { useLayoutStore } from './store/useLayoutStore'
-import { COLORS } from './constants'
+import { useLayoutStore } from '@store'
+import { COLORS } from '@constants'
 
 const theme = createTheme({
     primaryColor: 'indigo',
@@ -74,7 +75,7 @@ function App() {
 
     return (
         <MantineProvider theme={theme} defaultColorScheme="dark">
-            <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: COLORS.bg }}>
+            <div className={classes.appContainer}>
                 <Sidebar 
                     activeShape={activeShape} shapes={blocks}
                     onSelect={setSelectedId} onAddBlock={addBlock} onUpdateMeta={updateBlockMeta}

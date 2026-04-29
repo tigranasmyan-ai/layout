@@ -1,0 +1,17 @@
+.blueprintContainer {
+    position: absolute;
+    pointer-events: auto;
+    cursor: move;
+    z-index: 1;
+    display: block;
+}
+
+.blueprintContainer.selected {
+    border: 2px solid #10b981;
+}
+
+.blueprintImage {
+    width: 100%;
+    pointer-events: none;
+    user-select: none;
+}

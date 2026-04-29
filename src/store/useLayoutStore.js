@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { nanoid } from 'nanoid';
-import { DEFAULT_BLOCK_META } from '../constants';
+import { DEFAULT_BLOCK_META } from '@constants';
 
 export const useLayoutStore = create(
     persist(
@@ -15,9 +15,55 @@ export const useLayoutStore = create(
                 palette: [],
                 selectedId: null,
 
-                // Actions
+                // --- Core Actions ---
+
+                /**
+                 * Универсальный метод обновления блоков.
+                 * @param {Array|Function} newBlocksOrFunc - Новые блоки или функция обновления
+                 * @param {Boolean} silent - Если true, изменение не попадет в Undo/Redo
+                 */
+                setBlocks: (newBlocksOrFunc, silent = false) => {
+                    const { blocks } = get();
+                    const nextBlocks = typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(blocks) : newBlocksOrFunc;
+                    
+                    if (silent) {
+                        const temporalState = useLayoutStore.temporal.getState();
+                        temporalState.pause();
+                        set({ blocks: nextBlocks });
+                        // Используем requestAnimationFrame или синхронный возврат, чтобы избежать setTimeout
+                        temporalState.resume();
+                    } else {
+                        set({ blocks: nextBlocks });
+                    }
+                },
+
+                /**
+                 * Обновление одного блока по ID (патч данных)
+                 */
+                patchBlock: (id, payload, silent = false) => {
+                    get().setBlocks(prev => prev.map(b => {
+                        if (b && b.id === id) {
+                            // Глубокое слияние для meta, если оно есть в payload
+                            if (payload.meta) {
+                                return { ...b, ...payload, meta: { ...(b.meta || {}), ...payload.meta } };
+                            }
+                            return { ...b, ...payload };
+                        }
+                        return b;
+                    }), silent);
+                },
+
+                /**
+                 * Специализированный хелпер для meta (самая частая операция)
+                 */
+                updateBlockMeta: (id, key, value, silent = false) => {
+                    get().patchBlock(id, { meta: { [key]: value } }, silent);
+                },
+
                 setSelectedId: (id) => set({ selectedId: id }),
                 
+                // --- Complex Operations ---
+
                 addBlock: (parentId = null, count = 1) => {
                     const { blocks, selectedId } = get();
                     const actualParentId = parentId || selectedId;
@@ -34,32 +80,6 @@ export const useLayoutStore = create(
                         });
                     }
                     set({ blocks: [...blocks, ...newBlocks], selectedId: newBlocks[newBlocks.length - 1].id });
-                },
-
-                updateBlockMeta: (id, key, value) => {
-                    set((state) => ({
-                        blocks: state.blocks.map(b => (b && b.id === id) ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b)
-                    }));
-                },
-
-                updateBlockSize: (id, key, value) => {
-                    set((state) => ({
-                        blocks: state.blocks.map(b => (b && b.id === id) ? { ...b, [key]: value } : b)
-                    }));
-                },
-
-                setBlocks: (newBlocksOrFunc) => {
-                    const newBlocks = typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(get().blocks) : newBlocksOrFunc;
-                    set({ blocks: newBlocks });
-                },
-
-                setBlocksSilent: (newBlocksOrFunc) => {
-                    // Пауза записи истории через API стора
-                    useLayoutStore.temporal.getState().pause();
-                    const newBlocks = typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(get().blocks) : newBlocksOrFunc;
-                    set({ blocks: newBlocks });
-                    // Возобновление (через таймаут, чтобы set успел отработать без истории)
-                    setTimeout(() => useLayoutStore.temporal.getState().resume(), 0);
                 },
 
                 deleteBlocks: (idsString) => {
@@ -130,6 +150,7 @@ export const useLayoutStore = create(
                     set({ blocks: [...blocks, ...finalBlocks], selectedId: finalBlocks[0].id });
                 },
 
+                // --- Assets & Settings ---
                 updateBlueprint: (payload) => set((state) => ({ blueprint: { ...state.blueprint, ...payload } })),
                 addAsset: (asset) => set((state) => ({ assets: [...state.assets, asset] })),
                 removeAsset: (id) => set((state) => ({ assets: state.assets.filter(a => a.id !== id) })),
@@ -142,7 +163,6 @@ export const useLayoutStore = create(
             {
                 limit: 100,
                 partialize: (state) => ({ blocks: state.blocks }),
-                // Проверка на глубокое равенство, чтобы не плодить пустые шаги
                 equality: (a, b) => JSON.stringify(a) === JSON.stringify(b)
             }
         ),

@@ -1,0 +1,21 @@
+.toolbar {
+    position: relative;
+    background: rgba(20, 20, 25, 0.95);
+    backdrop-filter: blur(12px);
+    padding: 4px;
+    border-radius: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 9999;
+    pointer-events: auto;
+}
+
+.sizeInputs {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 0 4px;
+}
