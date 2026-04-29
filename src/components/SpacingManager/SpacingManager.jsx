@@ -32,7 +32,6 @@ export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto }) => {
                     padding: `${2*iz}px ${6*iz}px`,
                     borderRadius: 4*iz,
                     fontSize: 9*iz,
-                    boxShadow: `0 ${4*iz}px ${10*iz}px rgba(0,0,0,0.3)`,
                 }}
             >
                 {val === 'auto' ? 'AUTO' : `${num}px`}
@@ -51,7 +50,7 @@ export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto }) => {
                     <React.Fragment key={`m-zone-${side}`}>
                         <div style={{
                             position: 'absolute', zIndex: -1, pointerEvents: 'none',
-                            background: isV ? `linear-gradient(${side === 'top' ? 'to top' : 'to bottom'}, rgba(245,158,11,0.1), transparent)` : `linear-gradient(${side === 'left' ? 'to left' : 'to right'}, rgba(245,158,11,0.1), transparent)`,
+                            background: 'rgba(245,158,11,0.05)',
                             ...(side === 'top' ? { top: -mv, left: 0, width: '100%', height: mv } : {}),
                             ...(side === 'bottom' ? { bottom: -mv, left: 0, width: '100%', height: mv } : {}),
                             ...(side === 'left' ? { left: -mv, top: 0, width: mv, height: '100%' } : {}),
@@ -70,7 +69,7 @@ export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto }) => {
                     <React.Fragment key={`p-zone-${side}`}>
                         <div style={{
                             position: 'absolute', zIndex: -1, pointerEvents: 'none',
-                            background: isV ? `linear-gradient(${side === 'top' ? 'to bottom' : 'to top'}, rgba(168,85,247,0.1), transparent)` : `linear-gradient(${side === 'left' ? 'to right' : 'to left'}, rgba(168,85,247,0.1), transparent)`,
+                            background: 'rgba(168,85,247,0.05)',
                             ...(side === 'top' ? { top: 0, left: 0, width: '100%', height: pv } : {}),
                             ...(side === 'bottom' ? { bottom: 0, left: 0, width: '100%', height: pv } : {}),
                             ...(side === 'left' ? { left: 0, top: 0, width: pv, height: '100%' } : {}),
@@ -129,7 +128,6 @@ const SpacingLine = ({ type, side, value, block, zoom, onStartDrag }) => {
                     width: isV ? '100%' : (isHovered ? `${2*iz}px` : `${iz}px`),
                     height: isV ? (isHovered ? `${2*iz}px` : `${iz}px`) : '100%',
                     opacity: isHovered ? 1 : 0.25,
-                    boxShadow: isHovered ? `0 0 ${6*iz}px ${color}` : 'none',
                 }} 
             />
         </div>

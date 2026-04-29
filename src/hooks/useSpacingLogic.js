@@ -37,18 +37,31 @@ export const useSpacingLogic = (zoom, setBlocks, blocks) => {
             const baseVal = (startValue === 'auto' || startValue === undefined) ? 0 : parseInt(startValue);
             const newValue = Math.max(0, Math.round(baseVal + delta / zoom));
             
-            // "Тихое" обновление через новый API стора (silent = true)
-            setBlocksRef.current(prev => {
-                const next = prev.map(b => b && b.id === id ? {
-                    ...b,
-                    meta: { 
-                        ...b.meta, 
-                        [type]: { ...(b.meta?.[type] || {}), [side]: newValue } 
-                    }
-                } : b);
-                lastBlocks = next;
-                return next;
-            }, true); 
+            // Находим DOM элемент и обновляем CSS переменную напрямую
+            const el = document.querySelector(`[data-id="${id}"]`);
+            if (el) {
+                if (type === 'margin') {
+                    const varName = `--m-${side}`;
+                    el.style.setProperty(varName, `${newValue}px`);
+                } else {
+                    // Для паддинга сложнее, так как это одна переменная --padding
+                    // Получаем текущее значение или дефолт
+                    const currentPadding = el.style.getPropertyValue('--padding') || '0px 0px 0px 0px';
+                    const parts = currentPadding.split(' ');
+                    const map = { top: 0, right: 1, bottom: 2, left: 3 };
+                    parts[map[side]] = `${newValue}px`;
+                    el.style.setProperty('--padding', parts.join(' '));
+                }
+            }
+
+            // Сохраняем финальное состояние в локальную переменную для handleMouseUp
+            lastBlocks = blocksRef.current.map(b => b && b.id === id ? {
+                ...b,
+                meta: { 
+                    ...b.meta, 
+                    [type]: { ...(b.meta?.[type] || {}), [side]: newValue } 
+                }
+            } : b);
         };
 
         const handleMouseUp = () => {

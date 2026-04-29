@@ -31,7 +31,6 @@
     background-position: var(--bg-position);
     border-radius: var(--border-radius);
     border: var(--border);
-    transition: var(--transition);
 }
 
 .textContent {

@@ -1,10 +1,9 @@
 import React from 'react';
-import { Box, Group, Text, ScrollArea, Stack, ActionIcon, Button, Collapse } from '@mantine/core';
+import { Box, Group, Text, Stack, ActionIcon, Button, Collapse } from '@mantine/core';
 import { IconLayout2, IconChevronDown, IconBox, IconTrash, IconChevronRight } from '@tabler/icons-react';
+import { getPref, updatePref, groupBlocksByParent } from '@utils';
 
-import { getPref, updatePref } from '@utils';
-
-export default function NavigatorSection({ 
+function NavigatorSection({ 
     blocks, selectedId, onSelect, onRemove, onClear, 
     isOpen = true, onToggle 
 }) {
@@ -12,6 +11,8 @@ export default function NavigatorSection({
         const saved = getPref('collapsedLayers', []);
         return new Set(saved);
     });
+
+    const blocksByParent = React.useMemo(() => groupBlocksByParent(blocks), [blocks]);
 
     React.useEffect(() => {
         updatePref('collapsedLayers', [...collapsedIds]);
@@ -28,14 +29,13 @@ export default function NavigatorSection({
     };
 
     const renderTree = (parentId = 'root') => {
-        if (!Array.isArray(blocks)) return null;
-        const children = blocks.filter(s => s && (s.parentId || 'root') === parentId);
+        const children = blocksByParent[parentId] || [];
         if (children.length === 0) return null;
 
         return (
             <Stack gap={2} mt={parentId === 'root' ? 0 : 4}>
                 {children.map(shape => {
-                    const hasChildren = blocks.some(s => s && s.parentId === shape.id);
+                    const hasChildren = (blocksByParent[shape.id] || []).length > 0;
                     const isCollapsed = collapsedIds.has(shape.id);
 
                     return (
@@ -114,3 +114,5 @@ export default function NavigatorSection({
         </Box>
     );
 }
+
+export default React.memo(NavigatorSection);

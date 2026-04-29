@@ -1,3 +1,5 @@
 export * from './useCanvasInteraction';
-export * from './useMoveableHandlers';
 export * from './useSpacingLogic';
+export * from './useMoveableHandlers';
+export * from './useSelectionTargets';
+export * from './useCanvasActions';

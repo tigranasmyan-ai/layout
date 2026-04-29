@@ -11,15 +11,20 @@ import AdvancedCssSection from '@components/Sidebar/AdvancedCssSection/AdvancedC
 import BlueprintSection from '@components/Sidebar/BlueprintSection/BlueprintSection';
 import { getPref, updatePref } from '@utils';
 
-// Импортируем стили как объект classes
 import classes from './Sidebar.module.css';
+import { useLayoutStore } from '@store';
 
 export default function Sidebar({ 
-    activeShape, shapes, onSelect, onUpdateMeta, onShowCode, onOpenAssets, onOpenFonts, onOpenColors,
+    onSelect, onUpdateMeta, onShowCode, onOpenAssets, onOpenFonts, onOpenColors,
     onOpenBlueprintAssets,
     onDeleteBlock, onClear, blueprint, onUpdateBlueprint, availableFonts,
     palette, onAddColor, onRemoveColor
 }) {
+    const selectedId = useLayoutStore(state => state.selectedId);
+    const blocks = useLayoutStore(state => state.blocks);
+    const firstSelectedId = React.useMemo(() => selectedId?.split(',')[0], [selectedId]);
+    const activeShape = React.useMemo(() => blocks.find(b => b && b.id === firstSelectedId), [blocks, firstSelectedId]);
+
     const [openSections, setOpenSections] = React.useState(() => 
         getPref('sidebarSections', { navigator: true, blueprint: true, background: true, content: true, css: false })
     );
@@ -58,7 +63,7 @@ export default function Sidebar({
 
             <ScrollArea scrollbars="y" className={classes.scrollArea}>
                 <NavigatorSection 
-                    blocks={shapes} 
+                    blocks={blocks} 
                     selectedId={activeShape?.id} 
                     onSelect={onSelect} 
                     onRemove={onDeleteBlock}
@@ -84,7 +89,7 @@ export default function Sidebar({
                             palette={palette} onAddColor={onAddColor} onRemoveColor={onRemoveColor}
                         />
                         
-                        {!shapes.some(s => s && s.parentId === activeShape?.id) && (
+                        {!blocks.some(s => s && s.parentId === activeShape?.id) && (
                             <TypographySection 
                                 activeShape={activeShape} onUpdateMeta={onUpdateMeta} 
                                 isOpen={openSections.content} onToggle={() => toggleSection('content')} 

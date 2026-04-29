@@ -1,128 +1,55 @@
-import React, {useRef, useEffect, useState, useMemo} from 'react'
-import Moveable from 'react-moveable'
-import InfiniteViewer from "react-infinite-viewer"
-import Block from '@components/Block'
-import classes from './Canvas.module.css'
-import { useCanvasInteraction, useSpacingLogic, useMoveableHandlers } from '@hooks'
-import EmptyState from '@components/EmptyState'
-import BlueprintImg from '@components/BlueprintImg'
-import FloatingToolbar from '@components/FloatingToolbar'
-import { BlockProvider } from '@components/BlockContext'
+import React, { useRef, useState, useMemo, useEffect } from 'react';
+import Moveable from 'react-moveable';
+import InfiniteViewer from "react-infinite-viewer";
+import Block from '@components/Block';
+import classes from './Canvas.module.css';
+import { 
+    useCanvasInteraction, useSpacingLogic, useMoveableHandlers, 
+    useSelectionTargets, useCanvasActions 
+} from '@hooks';
+import EmptyState from '@components/EmptyState';
+import BlueprintImg from '@components/BlueprintImg';
+import FloatingToolbar from '@components/FloatingToolbar';
+import { BlockProvider } from '@components/BlockContext';
+import { groupBlocksByParent } from '@utils';
 
-// Custom Ability for Spacing
+// Custom Ability for Spacing (could also be moved to a file)
 const SpacingAbility = {
     name: "spacing",
-    render(moveable, React) {
-        return null;
-    }
+    render(moveable, React) { return null; }
 };
 
 export default function Canvas({ 
     blocks, setBlocks, selectedId, onSelect, onAddBlock, blueprint, onUpdateBlueprint 
 }) {
-    const viewerRef = useRef(null)
-    const moveableRef = useRef(null)
-    const viewportRef = useRef(null)
-    const [targets, setTargets] = useState([])
-    const [zoom, setZoom] = useState(1)
-    const [isTransforming, setIsTransforming] = useState(false)
+    const viewerRef = useRef(null);
+    const moveableRef = useRef(null);
+    const viewportRef = useRef(null);
+    const [zoom, setZoom] = useState(1);
+    const [isTransforming, setIsTransforming] = useState(false);
 
-    // Хуки для интерактивности
-    const {isPanning, editingSpace, setEditingSpace} = useCanvasInteraction(zoom, setZoom, setBlocks);
-    const {startDraggingSpace, draggingType, isInteracting} = useSpacingLogic(zoom, setBlocks, blocks);
-    const {handleDrag, handleDragEnd, handleResize, handleResizeEnd} = useMoveableHandlers({
+    // 1. Извлечение логики в хуки
+    const { isPanning } = useCanvasInteraction(zoom, setZoom, setBlocks);
+    const { startDraggingSpace, draggingType, isInteracting } = useSpacingLogic(zoom, setBlocks, blocks);
+    const { handleResize, handleResizeEnd } = useMoveableHandlers({
         blocks, setBlocks, onUpdateBlueprint, setIsTransforming
     });
-
-    const blocksByParent = useMemo(() => {
-        const map = {};
-        if (Array.isArray(blocks)) {
-            blocks.forEach(b => {
-                if (!b) return;
-                const pid = b.parentId || 'root';
-                if (!map[pid]) map[pid] = [];
-                map[pid].push(b);
-            });
-        }
-        // Чтобы мемоизация работала, нужно, чтобы ссылки на массивы детей не менялись, 
-        // если сами дети (по ссылке) те же. Но так как блоки меняются при каждом движении, 
-        // мы полагаемся на кастомное сравнение в Block.memo.
-        return map;
-    }, [blocks]);
-
+    
     const selectedIds = useMemo(() => String(selectedId || '').split(',').filter(Boolean), [selectedId]);
+    const targets = useSelectionTargets(selectedId, selectedIds, blocks);
+    const { updateMeta, handleSize, handleFill } = useCanvasActions(blocks, setBlocks);
 
-    useEffect(() => {
-        if (selectedIds.length === 0 || !Array.isArray(blocks)) {
-            setTargets(selectedId === 'blueprint-img' ? [document.getElementById('blueprint-img')] : []);
-            return;
-        }
-        const timer = setTimeout(() => {
-            const els = selectedIds.map(id => document.querySelector(`[data-id="${id}"]`)).filter(Boolean);
-            setTargets(els);
-        }, 30);
-        return () => clearTimeout(timer);
-    }, [selectedIds, blocks, selectedId]);
+    // 2. Группировка блоков
+    const blocksByParent = useMemo(() => groupBlocksByParent(blocks), [blocks]);
 
+    // 3. Синхронизация Moveable
     useEffect(() => {
         if (moveableRef.current) moveableRef.current.updateRect();
     }, [blocks, zoom, targets]);
 
-    const updateMeta = (id, key, value) => {
-        requestAnimationFrame(() => {
-            setBlocks(prev => prev.map(b => b && b.id === id ? {...b, meta: {...b.meta, [key]: value}} : b));
-        });
-    };
-
-    const handleSize = (id, key, value) => {
-        if (!id) return;
-        const val = (String(value).includes('%')) ? value : (parseInt(value) || 0);
-        setBlocks(prev => prev.map(b => (b && b.id === id) ? {...b, [key]: val} : b));
-    };
-
-    const handleFill = (id, side) => {
-        setBlocks(prev => {
-            const block = prev.find(b => b.id === id);
-            if (!block || !block.parentId) return prev;
-            const parent = prev.find(p => p.id === block.parentId);
-            const dir = parent?.meta?.direction || 'row';
-            const isMainAxis = (dir === 'row' && (side === 'left' || side === 'right')) ||
-                (dir === 'column' && (side === 'top' || side === 'bottom'));
-
-            return prev.map(b => {
-                if (b.id !== id) return b;
-                const newMeta = {...b.meta};
-                const bCopy = {...b};
-                if (isMainAxis) {
-                    const currentGrow = b.meta?.flexGrow === 1;
-                    newMeta.flexGrow = currentGrow ? 0 : 1;
-                    newMeta.flexBasis = currentGrow ? 'auto' : '0%';
-                    const dim = dir === 'row' ? 'w' : 'h';
-                    delete newMeta[dim];
-                    delete bCopy[dim];
-                } else {
-                    const dimension = dir === 'row' ? 'h' : 'w';
-                    const currentFull = b.meta?.[dimension] === '100%';
-                    if (currentFull) {
-                        delete newMeta[dimension];
-                        delete bCopy[dimension];
-                    } else {
-                        newMeta[dimension] = '100%';
-                        bCopy[dimension] = '100%';
-                    }
-                    newMeta.alignSelf = currentFull ? 'auto' : 'stretch';
-                }
-                return {...bCopy, meta: newMeta};
-            });
-        });
-    };
-
+    // 4. Подготовка действий для контекста
     const blockActions = useMemo(() => ({
-        onSelect, 
-        updateMeta, 
-        handleSize, 
-        handleFill, 
-        onAddBlock,
+        onSelect, updateMeta, handleSize, handleFill, onAddBlock,
         onStartDrag: startDraggingSpace,
         onSetAuto: (id, side) => updateMeta(id, 'margin', {
             ...(blocks.find(b => b && b.id === id)?.meta?.margin || {}),
@@ -134,9 +61,7 @@ export default function Canvas({
         <BlockProvider actions={blockActions}>
             <div 
                 className={classes.canvasMainContainer}
-                onMouseDown={(e) => {
-                    if (!isPanning) onSelect(null);
-                }}
+                onMouseDown={(e) => !isPanning && onSelect(null)}
                 onDoubleClick={(e) => {
                     const target = e.target;
                     if (target.classList.contains('moveable-control')) {
@@ -147,9 +72,7 @@ export default function Canvas({
                     }
                 }}
             >
-                {blocks.length === 0 && (
-                    <EmptyState onAdd={() => onAddBlock(null)}/>
-                )}
+                {blocks.length === 0 && <EmptyState onAdd={() => onAddBlock(null)}/>}
 
                 <InfiniteViewer
                     ref={viewerRef}
@@ -164,8 +87,7 @@ export default function Canvas({
                             <Block
                                 key={block.id} block={block} blocks={blocks} blocksByParent={blocksByParent}
                                 selectedIds={selectedIds} isPanning={isPanning} zoom={zoom}
-                                isTransforming={isTransforming}
-                                draggingType={draggingType}
+                                isTransforming={isTransforming} draggingType={draggingType}
                             />
                         ))}
 
@@ -193,16 +115,12 @@ export default function Canvas({
 
                         <Moveable
                             ref={moveableRef} target={targets} zoom={1 / zoom}
-                            resizable={targets.length === 1}
-                            useResizeObserver={true}
-                            edgeDraggable={true}
+                            resizable={targets.length === 1} useResizeObserver={true}
                             renderDirections={["n", "nw", "ne", "s", "sw", "se", "w", "e"]}
-                            abilities={[SpacingAbility]}
-                            spacing={true}
+                            abilities={[SpacingAbility]} spacing={true}
                             keepRatio={targets.length === 1 && targets[0]?.id === 'blueprint-img'}
                             onResizeStart={() => setIsTransforming(true)}
-                            onResize={handleResize}
-                            onResizeEnd={handleResizeEnd}
+                            onResize={handleResize} onResizeEnd={handleResizeEnd}
                         />
                     </div>
                 </InfiniteViewer>
@@ -213,12 +131,5 @@ export default function Canvas({
                 </div>
             </div>
         </BlockProvider>
-    )
-}
-button>
-                    <button onClick={() => onSave(val)} className={classes.btnPrimary} style={{ flex: 1 }}>Save</button>
-                </div>
-            </div>
-        </div>
     );
-};
+}

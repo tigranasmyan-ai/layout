@@ -35,6 +35,5 @@ export const getBlockStyles = (block, m, isSelected, iz, isTransforming) => {
         '--bg-position': m.bgPosition || 'center',
         '--border-radius': `${m.borderRadius || 0}px`,
         '--border': isSelected ? `${iz}px solid rgba(79, 70, 229, 0.5)` : (m.border || `${iz}px solid rgba(255, 255, 255, 0.08)`),
-        '--transition': isTransforming ? 'none' : 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     };
 };

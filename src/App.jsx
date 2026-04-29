@@ -24,12 +24,30 @@ const theme = createTheme({
 })
 
 function App() {
-    const {
-        blocks, blueprint, assets, fonts, palette, selectedId,
-        setSelectedId, addBlock, updateBlockMeta, deleteBlocks,
-        copyBlocks, pasteBlocks, setBlocks, setBlocksSilent, updateBlueprint,
-        addAsset, removeAsset, addFont, removeFont, addColor, removeColor, clearAll
-    } = useLayoutStore();
+    // Данные
+    const blocks = useLayoutStore(state => state.blocks);
+    const blueprint = useLayoutStore(state => state.blueprint);
+    const assets = useLayoutStore(state => state.assets);
+    const fonts = useLayoutStore(state => state.fonts);
+    const palette = useLayoutStore(state => state.palette);
+    const selectedId = useLayoutStore(state => state.selectedId);
+
+    // Экшены (они не меняются, поэтому App не будет рендериться при их "изменении")
+    const setSelectedId = useLayoutStore(state => state.setSelectedId);
+    const addBlock = useLayoutStore(state => state.addBlock);
+    const updateBlockMeta = useLayoutStore(state => state.updateBlockMeta);
+    const deleteBlocks = useLayoutStore(state => state.deleteBlocks);
+    const copyBlocks = useLayoutStore(state => state.copyBlocks);
+    const pasteBlocks = useLayoutStore(state => state.pasteBlocks);
+    const setBlocks = useLayoutStore(state => state.setBlocks);
+    const updateBlueprint = useLayoutStore(state => state.updateBlueprint);
+    const addAsset = useLayoutStore(state => state.addAsset);
+    const removeAsset = useLayoutStore(state => state.removeAsset);
+    const addFont = useLayoutStore(state => state.addFont);
+    const removeFont = useLayoutStore(state => state.removeFont);
+    const addColor = useLayoutStore(state => state.addColor);
+    const removeColor = useLayoutStore(state => state.removeColor);
+    const clearAll = useLayoutStore(state => state.clearAll);
 
     const { undo, redo } = useStore(useLayoutStore.temporal, (state) => state);
 
@@ -38,11 +56,9 @@ function App() {
     const [fontManagerOpened, setFontManagerOpened] = useState(false);
     const [colorManagerOpened, setColorManagerOpened] = useState(false);
     
-    // Новое состояние для цели выбора ассета
-    const [assetTarget, setAssetTarget] = useState('block'); // 'block' или 'blueprint'
+    const [assetTarget, setAssetTarget] = useState('block');
 
     const firstSelectedId = useMemo(() => selectedId?.split(',')[0], [selectedId]);
-    const activeShape = useMemo(() => blocks.find(b => b && b.id === firstSelectedId), [blocks, firstSelectedId]);
 
     useEffect(() => {
         if (fonts.length === 0) return;
@@ -77,7 +93,6 @@ function App() {
         <MantineProvider theme={theme} defaultColorScheme="dark">
             <div className={classes.appContainer}>
                 <Sidebar 
-                    activeShape={activeShape} shapes={blocks}
                     onSelect={setSelectedId} onAddBlock={addBlock} onUpdateMeta={updateBlockMeta}
                     onShowCode={() => setShowCode(true)} 
                     onOpenAssets={() => handleOpenAssets('block')}
@@ -92,7 +107,7 @@ function App() {
                 />
                 
                 <Canvas 
-                    blocks={blocks} setBlocks={setBlocks} setBlocksSilent={setBlocksSilent}
+                    blocks={blocks} setBlocks={setBlocks}
                     selectedId={selectedId} onSelect={setSelectedId} onAddBlock={addBlock}
                     blueprint={blueprint} onUpdateBlueprint={updateBlueprint}
                 />
