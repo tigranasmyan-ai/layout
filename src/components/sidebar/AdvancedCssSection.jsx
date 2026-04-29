@@ -1,22 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Group, Text } from '@mantine/core';
 import { IconBracketsContain, IconChevronDown } from '@tabler/icons-react';
 import Editor from '@monaco-editor/react';
 
 export default function AdvancedCssSection({ activeShape, onUpdateMeta, isOpen, onToggle }) {
+    const [localCss, setLocalCss] = useState('');
+    const timerRef = useRef(null);
+
+    useEffect(() => {
+        if (activeShape) {
+            setLocalCss(activeShape.meta?.customCss || '');
+        }
+    }, [activeShape?.id]);
+
     if (!activeShape) return null;
 
-    const editorValue = `.${activeShape.id} {\n${activeShape.meta?.customCss || ''}\n}`;
+    const editorValue = `.${activeShape.id} {\n${localCss}\n}`;
 
     const handleEditorChange = (value) => {
         const prefix = `.${activeShape.id} {`;
         const suffix = `}`;
         let content = value;
+        
         if (!content.startsWith(prefix)) content = prefix + '\n' + content.split('\n').slice(1).join('\n');
         if (!content.endsWith(suffix)) content = content.split('\n').slice(0, -1).join('\n') + '\n' + suffix;
+        
         const lines = content.split('\n');
         const innerContent = lines.slice(1, -1).join('\n');
-        onUpdateMeta(activeShape.id, 'customCss', innerContent);
+        
+        // Сначала обновляем локальный стейт для мгновенной реакции
+        setLocalCss(innerContent);
+
+        // Дебаунс для сохранения в историю
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+            onUpdateMeta(activeShape.id, 'customCss', innerContent);
+        }, 800); // Сохраняем в историю только если юзер замер на 0.8 сек
     };
 
     return (

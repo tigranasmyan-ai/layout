@@ -7,6 +7,14 @@ import { useSpacingLogic } from './hooks/useSpacingLogic'
 import { useMoveableHandlers } from './hooks/useMoveableHandlers'
 import { COLORS } from '../constants'
 
+// Custom Ability for Spacing
+const SpacingAbility = {
+    name: "spacing",
+    render(moveable, React) {
+        return null;
+    }
+};
+
 // Sub-components
 import EmptyState from './components/EmptyState'
 import BlueprintImg from './components/BlueprintImg'
@@ -31,7 +39,7 @@ export default function Canvas({
 
     // Хуки для интерактивности
     const { isPanning, editingSpace, setEditingSpace } = useCanvasInteraction(zoom, setZoom, setBlocksSilent);
-    const { startDraggingSpace, draggingType } = useSpacingLogic(zoom, setBlocksSilent, setBlocks, blocks);
+    const { startDraggingSpace, draggingType, isInteracting } = useSpacingLogic(zoom, setBlocksSilent, setBlocks, blocks);
     const { handleDrag, handleDragEnd, handleResize, handleResizeEnd } = useMoveableHandlers({ 
         blocks, setBlocks, setBlocksSilent, onUpdateBlueprint, setIsTransforming 
     });
@@ -162,7 +170,7 @@ export default function Canvas({
                             editingSpace={editingSpace}
                             onSaveEdit={(val) => {
                                 updateMeta(editingSpace.id, editingSpace.type, {
-                                    ...(blocks.find(b => b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
+                                    ...(blocks.find(b => b && b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
                                     [editingSpace.side]: isNaN(parseInt(val)) ? val : parseInt(val)
                                 });
                                 setEditingSpace(null);
@@ -170,19 +178,20 @@ export default function Canvas({
                             onSelect={onSelect} onUpdateMeta={updateMeta} onUpdateSize={handleSize}
                             onAddBlock={onAddBlock}
                             onStartDrag={startDraggingSpace}
-                            onSetAuto={(id, side) => updateMeta(id, 'margin', {...(blocks.find(b => b.id === id)?.meta?.margin || {}), [side]: 'auto'})}
+                            onSetAuto={(id, side) => updateMeta(id, 'margin', {...(blocks.find(b => b && b.id === id)?.meta?.margin || {}), [side]: 'auto'})}
                             onEdit={(id, type, side) => setEditingSpace({ id, type, side })}
                             onFill={handleFill}
                         />
                     ))}
 
                     {/* Плавающая панель (теперь на уровне канваса для правильного z-index) */}
-                    {selectedIds.length === 1 && !isPanning && targets[0] && viewportRef.current && (
+                    {selectedIds.length === 1 && !isPanning && !isInteracting && targets[0] && viewportRef.current && (
                         <div style={{
                             position: 'absolute',
                             left: (targets[0].getBoundingClientRect().left - viewportRef.current.getBoundingClientRect().left) / zoom,
                             top: (targets[0].getBoundingClientRect().top - viewportRef.current.getBoundingClientRect().top) / zoom,
                             width: targets[0].offsetWidth,
+                            height: 0,
                             pointerEvents: 'none', 
                             zIndex: 999999,
                             display: 'flex',
@@ -190,10 +199,10 @@ export default function Canvas({
                         }}>
                             <div style={{ pointerEvents: 'auto' }}>
                                 <FloatingToolbar 
-                                    block={blocks.find(b => b.id === selectedIds[0])} 
+                                    block={blocks.find(b => b && b.id === selectedIds[0])} 
                                     zoom={zoom} 
                                     hasChildren={(blocksByParent[selectedIds[0]] || []).length > 0}
-                                    hasContent={(blocksByParent[selectedIds[0]] || []).length > 0 || !!blocks.find(b => b.id === selectedIds[0]).meta?.text}
+                                    hasContent={(blocksByParent[selectedIds[0]] || []).length > 0 || !!blocks.find(b => b && b.id === selectedIds[0])?.meta?.text}
                                     onUpdateMeta={(key, val) => updateMeta(selectedIds[0], key, val)}
                                     onUpdateSize={(key, val) => handleSize(selectedIds[0], key, val)}
                                     onAddBlock={onAddBlock}
@@ -207,7 +216,7 @@ export default function Canvas({
                         resizable={targets.length === 1}
                         useResizeObserver={true}
                         edgeDraggable={true}
-                        renderDirections={[]}
+                        renderDirections={["n", "nw", "ne", "s", "sw", "se", "w", "e"]}
                         keepRatio={targets.length === 1 && targets[0]?.id === 'blueprint-img'}
                         onResizeStart={() => setIsTransforming(true)} 
                         onResize={handleResize} 
@@ -227,7 +236,7 @@ export default function Canvas({
                     onClose={() => setEditingSpace(null)} 
                     onSave={(val) => {
                         updateMeta(editingSpace.id, editingSpace.type, {
-                            ...(blocks.find(b => b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
+                            ...(blocks.find(b => b && b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
                             [editingSpace.side]: isNaN(parseInt(val)) ? val : parseInt(val)
                         });
                         setEditingSpace(null);

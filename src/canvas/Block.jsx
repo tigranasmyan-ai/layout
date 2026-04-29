@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { IconPlus } from '@tabler/icons-react';
-import FloatingToolbar from './FloatingToolbar';
 
 export default function Block({ 
     block, blocks, blocksByParent, selectedIds, isPanning, zoom, isTransforming,
     draggingType, editingSpace, onSaveEdit,
     onSelect, onUpdateMeta, onUpdateSize, onAddBlock, onStartDrag, onSetAuto, onEdit, onFill
 }) {
+    if (!block) return null;
     const isSelected = selectedIds.includes(block.id);
     const m = block.meta || {};
     const children = blocksByParent[block.id] || [];
@@ -63,7 +63,7 @@ export default function Block({
                 </div>
             )}
 
-            {children.map(child => (
+            {children.map(child => child && (
                 <Block 
                     key={child.id} block={child} blocks={blocks} blocksByParent={blocksByParent}
                     selectedIds={selectedIds} isPanning={isPanning} zoom={zoom} isTransforming={isTransforming}
@@ -76,18 +76,6 @@ export default function Block({
 
             {isSelected && !isPanning && (
                 <>
-                    <FloatingToolbar 
-                        block={block} zoom={zoom} 
-                        hasChildren={children.length > 0}
-                        hasContent={children.length > 0 || !!m.text}
-                        onUpdateMeta={(key, val) => onUpdateMeta(block.id, key, val)}
-                        onUpdateSize={(key, val) => onUpdateSize(block.id, key, val)}
-                        onAddBlock={onAddBlock}
-                    />
-
-                    <AddBtn pos="center" onClick={() => onAddBlock(block.id)} />
-                    <AddBtn pos="right" onClick={() => onAddBlock(block.parentId)} />
-                    <AddBtn pos="bottom" onClick={() => onAddBlock(block.parentId)} />
 
                     <SpacingZones 
                         block={block} onStartDrag={onStartDrag} onSetAuto={onSetAuto} 
@@ -101,10 +89,50 @@ export default function Block({
 }
 
 const SpacingZones = ({ block, onStartDrag, onSetAuto, onEdit, zoom, draggingType, editingSpace, onSaveEdit }) => {
+    if (!block) return null;
     const m = block.meta || {};
     const sides = ['top', 'right', 'bottom', 'left'];
+    const margin = m.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+    const padding = m.padding || { top: 0, right: 0, bottom: 0, left: 0 };
+
     return (
         <>
+            {/* Visual Margin Zones */}
+            {sides.map(side => {
+                const val = margin[side];
+                if (!val || val === 'auto') return null;
+                const style = {
+                    position: 'absolute',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px dashed rgba(245, 158, 11, 0.3)',
+                    pointerEvents: 'none',
+                    zIndex: -1
+                };
+                if (side === 'top') Object.assign(style, { top: -val, left: 0, width: '100%', height: val });
+                if (side === 'bottom') Object.assign(style, { bottom: -val, left: 0, width: '100%', height: val });
+                if (side === 'left') Object.assign(style, { left: -val, top: 0, width: val, height: '100%' });
+                if (side === 'right') Object.assign(style, { right: -val, top: 0, width: val, height: '100%' });
+                return <div key={`m-zone-${side}`} style={style} />;
+            })}
+
+            {/* Visual Padding Zones */}
+            {sides.map(side => {
+                const val = padding[side];
+                if (!val) return null;
+                const style = {
+                    position: 'absolute',
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    border: '1px dashed rgba(168, 85, 247, 0.3)',
+                    pointerEvents: 'none',
+                    zIndex: -1
+                };
+                if (side === 'top') Object.assign(style, { top: 0, left: 0, width: '100%', height: val });
+                if (side === 'bottom') Object.assign(style, { bottom: 0, left: 0, width: '100%', height: val });
+                if (side === 'left') Object.assign(style, { left: 0, top: 0, width: val, height: '100%' });
+                if (side === 'right') Object.assign(style, { right: 0, top: 0, width: val, height: '100%' });
+                return <div key={`p-zone-${side}`} style={style} />;
+            })}
+
             {sides.map(side => {
                 const showM = !draggingType || draggingType === 'margin';
                 const showP = !draggingType || draggingType === 'padding';
@@ -137,6 +165,7 @@ const SpacingZones = ({ block, onStartDrag, onSetAuto, onEdit, zoom, draggingTyp
 };
 
 const SpacingHandle = ({ type, side, value, block, zoom, isEditing, onStartDrag, onEdit, onSetAuto, onSaveEdit, onCancelEdit }) => {
+    if (!block) return null;
     const isMargin = type === 'margin';
     const numVal = value === 'auto' ? 0 : (parseInt(value) || 0);
     const handleDistance = Math.max(15, numVal);
@@ -207,18 +236,3 @@ const InlineInput = ({ value, onSave, onCancel, color = '#f59e0b' }) => {
     );
 };
 
-const AddBtn = ({ pos, onClick }) => {
-    const base = {
-        position: 'absolute', width: 20, height: 20, borderRadius: '50%', background: '#4f46e5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 200, border: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
-    };
-    const styles = {
-        center: { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-        right: { top: '50%', right: -10, transform: 'translateY(-50%)' },
-        bottom: { bottom: -10, left: '50%', transform: 'translateX(-50%)' }
-    };
-    return (
-        <button style={{ ...base, ...styles[pos] }} onClick={(e) => { e.stopPropagation(); onClick(); }}>
-            <IconPlus size={14} strokeWidth={3} />
-        </button>
-    );
-};

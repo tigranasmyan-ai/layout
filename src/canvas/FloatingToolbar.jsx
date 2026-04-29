@@ -16,6 +16,7 @@ import {
 const Divider = () => <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />;
 
 export default function FloatingToolbar({ block, zoom, hasChildren, hasContent, onUpdateMeta, onUpdateSize, onAddBlock }) {
+    if (!block) return null;
     const invZoom = 1 / zoom;
     const { 
         direction = 'row', justify = 'flex-start', align = 'flex-start', wrap = 'nowrap'

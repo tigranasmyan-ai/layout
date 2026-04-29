@@ -8,6 +8,7 @@ import {
 import NavigatorSection from './sidebar/NavigatorSection';
 import BackgroundSection from './sidebar/BackgroundSection';
 import TypographySection from './sidebar/TypographySection';
+import SpacingSection from './sidebar/SpacingSection';
 import AdvancedCssSection from './sidebar/AdvancedCssSection';
 import BlueprintSection from './sidebar/BlueprintSection';
 import { getPref, updatePref } from '../utils/storage'
@@ -19,7 +20,7 @@ export default function Sidebar({
     palette, onAddColor, onRemoveColor
 }) {
     const [openSections, setOpenSections] = React.useState(() => 
-        getPref('sidebarSections', { blueprint: true, background: true, content: true, css: false })
+        getPref('sidebarSections', { blueprint: true, background: true, spacing: true, content: true, css: false })
     );
 
     React.useEffect(() => {
@@ -96,6 +97,11 @@ export default function Sidebar({
                             onOpenAssets={onOpenAssets}
                             onOpenColors={onOpenColors}
                             palette={palette} onAddColor={onAddColor} onRemoveColor={onRemoveColor}
+                        />
+                        
+                        <SpacingSection 
+                            activeShape={activeShape} onUpdateMeta={onUpdateMeta} 
+                            isOpen={openSections.spacing} onToggle={() => toggleSection('spacing')} 
                         />
                         
                         {!shapes.some(s => s && s.parentId === activeShape?.id) && (

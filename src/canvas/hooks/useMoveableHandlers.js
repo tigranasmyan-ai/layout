@@ -24,7 +24,7 @@ export function useMoveableHandlers({ blocks, setBlocks, setBlocksSilent, onUpda
         
         const id = e.target.id === 'blueprint-img' ? 'blueprint-img' : e.target.getAttribute('data-id');
         if (id !== 'blueprint-img' && id) {
-            const block = blocks.find(b => b.id === id);
+            const block = blocks.find(b => b && b.id === id);
             if (block && !block.parentId) {
                 setBlocks(prev => prev.map(b => b.id === id ? { ...b, x: e.lastEvent.left, y: e.lastEvent.top } : b));
             }
@@ -37,7 +37,7 @@ export function useMoveableHandlers({ blocks, setBlocks, setBlocksSilent, onUpda
         if (id === 'blueprint-img') {
             onUpdateBlueprint({ w: e.width, x: e.drag.left, y: e.drag.top });
         } else if (id) {
-            const block = blocks.find(b => b.id === id);
+            const block = blocks.find(b => b && b.id === id);
             const update = { 
                 w: Math.max(e.width, 10), 
                 h: Math.max(e.height, 10), 
@@ -75,7 +75,7 @@ export function useMoveableHandlers({ blocks, setBlocks, setBlocksSilent, onUpda
         
         const id = e.target.getAttribute('data-id');
         if (id) {
-            const block = blocks.find(b => b.id === id);
+            const block = blocks.find(b => b && b.id === id);
             const update = { 
                 w: Math.max(e.lastEvent.width, 10), 
                 h: Math.max(e.lastEvent.height, 10),

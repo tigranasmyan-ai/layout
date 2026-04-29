@@ -5,8 +5,8 @@ import { nanoid } from 'nanoid';
 import { DEFAULT_BLOCK_META } from '../constants';
 
 export const useLayoutStore = create(
-    temporal(
-        persist(
+    persist(
+        temporal(
             (set, get) => ({
                 blocks: [],
                 blueprint: { url: null, x: 0, y: 0, w: 1200, opacity: 0.5 },
@@ -38,13 +38,13 @@ export const useLayoutStore = create(
 
                 updateBlockMeta: (id, key, value) => {
                     set((state) => ({
-                        blocks: state.blocks.map(b => b.id === id ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b)
+                        blocks: state.blocks.map(b => (b && b.id === id) ? { ...b, meta: { ...(b.meta || {}), [key]: value } } : b)
                     }));
                 },
 
                 updateBlockSize: (id, key, value) => {
                     set((state) => ({
-                        blocks: state.blocks.map(b => b.id === id ? { ...b, [key]: value } : b)
+                        blocks: state.blocks.map(b => (b && b.id === id) ? { ...b, [key]: value } : b)
                     }));
                 },
 
@@ -54,11 +54,12 @@ export const useLayoutStore = create(
                 },
 
                 setBlocksSilent: (newBlocksOrFunc) => {
-                    const { pause, resume } = useLayoutStore.temporal.getState();
-                    pause(); // Останавливаем запись истории
+                    // Пауза записи истории через API стора
+                    useLayoutStore.temporal.getState().pause();
                     const newBlocks = typeof newBlocksOrFunc === 'function' ? newBlocksOrFunc(get().blocks) : newBlocksOrFunc;
                     set({ blocks: newBlocks });
-                    resume(); // Возобновляем
+                    // Возобновление (через таймаут, чтобы set успел отработать без истории)
+                    setTimeout(() => useLayoutStore.temporal.getState().resume(), 0);
                 },
 
                 deleteBlocks: (idsString) => {
@@ -139,19 +140,21 @@ export const useLayoutStore = create(
                 clearAll: () => set({ blocks: [], selectedId: null })
             }),
             {
-                name: 'layout-storage',
-                partialize: (state) => ({
-                    blocks: state.blocks,
-                    blueprint: state.blueprint,
-                    assets: state.assets,
-                    fonts: state.fonts,
-                    palette: state.palette
-                })
+                limit: 100,
+                partialize: (state) => ({ blocks: state.blocks }),
+                // Проверка на глубокое равенство, чтобы не плодить пустые шаги
+                equality: (a, b) => JSON.stringify(a) === JSON.stringify(b)
             }
         ),
         {
-            limit: 50,
-            partialize: (state) => ({ blocks: state.blocks }) // Отслеживаем только блоки для Undo/Redo
+            name: 'layout-storage',
+            partialize: (state) => ({
+                blocks: state.blocks,
+                blueprint: state.blueprint,
+                assets: state.assets,
+                fonts: state.fonts,
+                palette: state.palette
+            })
         }
     )
 );

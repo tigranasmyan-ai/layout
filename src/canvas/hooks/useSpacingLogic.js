@@ -67,7 +67,7 @@ export const useSpacingLogic = (zoom, setBlocksSilent, setBlocks, blocks) => {
 
     const startDraggingSpace = (id, type, side, e) => {
         // Берем значение из актуального рефа блоков
-        const currentBlock = blocksRef.current.find(b => b.id === id);
+        const currentBlock = blocksRef.current.find(b => b && b.id === id);
         const val = currentBlock?.meta?.[type]?.[side];
         
         e.stopPropagation();

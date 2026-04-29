@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     Box, Group, Text, ActionIcon, Stack, Select, TextInput, Textarea, Modal, Button 
 } from '@mantine/core';
@@ -15,7 +15,27 @@ export default function TypographySection({
     activeShape, onUpdateMeta, isOpen, onToggle, availableFonts = [], onOpenFonts, onOpenColors, palette = []
 }) {
     const [fullEditorOpened, setFullEditorOpened] = useState(false);
+    const [localText, setLocalText] = useState('');
+    const [localFontSize, setLocalFontSize] = useState('');
+    const timerRef = useRef({});
+
     const m = activeShape?.meta || {};
+
+    useEffect(() => {
+        if (activeShape) {
+            setLocalText(activeShape.meta?.text || '');
+            setLocalFontSize(activeShape.meta?.fontSize || '16px');
+        }
+    }, [activeShape?.id]);
+
+    const debouncedUpdate = (key, value) => {
+        if (timerRef.current[key]) clearTimeout(timerRef.current[key]);
+        timerRef.current[key] = setTimeout(() => {
+            onUpdateMeta(activeShape.id, key, value);
+        }, 800);
+    };
+
+    if (!activeShape) return null;
     
     const fontOptions = [
         ...SYSTEM_FONTS,
@@ -97,8 +117,11 @@ export default function TypographySection({
                             autosize
                             minRows={1}
                             maxRows={6}
-                            value={m.text || ''}
-                            onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                            value={localText}
+                            onChange={(e) => {
+                                setLocalText(e.target.value);
+                                debouncedUpdate('text', e.target.value);
+                            }}
                             styles={{ input: { paddingRight: 30 } }}
                         />
                         <ActionIcon 
@@ -116,8 +139,11 @@ export default function TypographySection({
                             label="Size"
                             size="xs"
                             placeholder="16px"
-                            value={m.fontSize || '16px'}
-                            onChange={(e) => onUpdateMeta(activeShape.id, 'fontSize', e.target.value)}
+                            value={localFontSize}
+                            onChange={(e) => {
+                                setLocalFontSize(e.target.value);
+                                debouncedUpdate('fontSize', e.target.value);
+                            }}
                         />
                         <Select 
                             label="Weight"
@@ -142,8 +168,11 @@ export default function TypographySection({
                     placeholder="Type your content here..."
                     minRows={10}
                     autosize
-                    value={m.text || ''}
-                    onChange={(e) => onUpdateMeta(activeShape.id, 'text', e.target.value)}
+                    value={localText}
+                    onChange={(e) => {
+                        setLocalText(e.target.value);
+                        debouncedUpdate('text', e.target.value);
+                    }}
                 />
                 <Group justify="flex-end" mt="md">
                     <Button onClick={() => setFullEditorOpened(false)}>Done</Button>
