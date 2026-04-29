@@ -71,10 +71,6 @@ const Block = React.memo(({
     );
 }, (prev, next) => {
     // Кастомная функция сравнения для максимальной точности
-    // Блок должен рендериться ТОЛЬКО если изменились его данные, статус выделения или глобальные параметры (зум, панорамирование)
-    const isSelectedPrev = prev.selectedIds.includes(prev.block.id);
-    const isSelectedNext = next.selectedIds.includes(next.block.id);
-    
     return prev.block === next.block && 
            prev.blocksByParent[prev.block.id] === next.blocksByParent[next.block.id] &&
            prev.selectedIds === next.selectedIds &&

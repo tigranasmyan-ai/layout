@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import classes from './SpacingManager.module.css';
 
-export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto, onEdit }) => {
+export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto }) => {
     const m = block.meta || {};
     const margin = m.margin || { top: 0, right: 0, bottom: 0, left: 0 };
     const padding = m.padding || { top: 0, right: 0, bottom: 0, left: 0 };
@@ -34,7 +34,6 @@ export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto, onEdit }) =>
                     fontSize: 9*iz,
                     boxShadow: `0 ${4*iz}px ${10*iz}px rgba(0,0,0,0.3)`,
                 }}
-                onDoubleClick={(e) => { e.stopPropagation(); onEdit(block.id, type, side); }}
             >
                 {val === 'auto' ? 'AUTO' : `${num}px`}
             </div>
@@ -85,15 +84,15 @@ export const SpacingZones = ({ block, zoom, onStartDrag, onSetAuto, onEdit }) =>
             {/* Handle Lines */}
             {sides.map(side => (
                 <React.Fragment key={`h-${side}`}>
-                    <SpacingLine type="margin" side={side} value={margin[side]} block={block} zoom={zoom} onStartDrag={onStartDrag} onEdit={onEdit} />
-                    <SpacingLine type="padding" side={side} value={padding[side]} block={block} zoom={zoom} onStartDrag={onStartDrag} onEdit={onEdit} />
+                    <SpacingLine type="margin" side={side} value={margin[side]} block={block} zoom={zoom} onStartDrag={onStartDrag} />
+                    <SpacingLine type="padding" side={side} value={padding[side]} block={block} zoom={zoom} onStartDrag={onStartDrag} />
                 </React.Fragment>
             ))}
         </>
     );
 };
 
-const SpacingLine = ({ type, side, value, block, zoom, onStartDrag, onEdit }) => {
+const SpacingLine = ({ type, side, value, block, zoom, onStartDrag }) => {
     const [isHovered, setIsHovered] = useState(false);
     const isM = type === 'margin';
     const num = value === 'auto' ? 0 : (parseInt(value) || 0);
@@ -120,7 +119,6 @@ const SpacingLine = ({ type, side, value, block, zoom, onStartDrag, onEdit }) =>
                 })
             }}
             onMouseDown={(e) => onStartDrag(block.id, type, side, e)}
-            onDoubleClick={() => onEdit(block.id, type, side)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >

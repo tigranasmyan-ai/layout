@@ -128,15 +128,7 @@ export default function Canvas({
             ...(blocks.find(b => b && b.id === id)?.meta?.margin || {}),
             [side]: 'auto'
         }),
-        onEdit: (id, type, side) => setEditingSpace({id, type, side}),
-        onSaveEdit: (val) => {
-            updateMeta(editingSpace.id, editingSpace.type, {
-                ...(blocks.find(b => b && b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
-                [editingSpace.side]: isNaN(parseInt(val)) ? val : parseInt(val)
-            });
-            setEditingSpace(null);
-        }
-    }), [onSelect, updateMeta, handleSize, handleFill, onAddBlock, startDraggingSpace, blocks, editingSpace]);
+    }), [onSelect, updateMeta, handleSize, handleFill, onAddBlock, startDraggingSpace, blocks]);
 
     return (
         <BlockProvider actions={blockActions}>
@@ -174,7 +166,6 @@ export default function Canvas({
                                 selectedIds={selectedIds} isPanning={isPanning} zoom={zoom}
                                 isTransforming={isTransforming}
                                 draggingType={draggingType}
-                                editingSpace={editingSpace}
                             />
                         ))}
 
@@ -220,41 +211,11 @@ export default function Canvas({
                     <div className={classes.zoomBadge}>{Math.round(zoom * 100)}%</div>
                     <button onClick={() => setZoom(1)} className={classes.btnPrimary}>Reset</button>
                 </div>
-
-                {editingSpace && (
-                    <EditModal
-                        data={editingSpace}
-                        onClose={() => setEditingSpace(null)}
-                        onSave={(val) => {
-                            updateMeta(editingSpace.id, editingSpace.type, {
-                                ...(blocks.find(b => b && b.id === editingSpace.id)?.meta?.[editingSpace.type] || {}),
-                                [editingSpace.side]: isNaN(parseInt(val)) ? val : parseInt(val)
-                            });
-                            setEditingSpace(null);
-                        }}
-                    />
-                )}
             </div>
         </BlockProvider>
     )
 }
-
-const EditModal = ({data, onClose, onSave}) => {
-    const [val, setVal] = useState('');
-    return (
-        <div className={classes.modalOverlay} onClick={onClose}>
-            <div className={classes.modalContent} onClick={e => e.stopPropagation()}>
-                <div className={classes.modalLabel}>Edit {data.type} {data.side}</div>
-                <input
-                    autoFocus
-                    className={classes.modalInput}
-                    placeholder="e.g. 20 or auto"
-                    value={val}
-                    onChange={e => setVal(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && onSave(val)}
-                />
-                <div className={classes.modalActions}>
-                    <button onClick={onClose} className={classes.btnSecondary}>Cancel</button>
+button>
                     <button onClick={() => onSave(val)} className={classes.btnPrimary} style={{ flex: 1 }}>Save</button>
                 </div>
             </div>
